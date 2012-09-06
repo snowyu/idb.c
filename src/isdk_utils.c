@@ -20,6 +20,7 @@
   THE SOFTWARE.
 */
 
+#include "config.h"
 //utility functions...
 #if __STDC_VERSION__ >= 199901L
 #define _XOPEN_SOURCE 600

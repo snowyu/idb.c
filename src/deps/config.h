@@ -1,6 +1,8 @@
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
+#define HAVE_UNISTD_H 1
+
 #ifdef __APPLE__
 #include <AvailabilityMacros.h>
 #endif

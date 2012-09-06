@@ -22,6 +22,7 @@
 
 //iDB helpers functions...
 
+#include "config.h"
 #include <errno.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
