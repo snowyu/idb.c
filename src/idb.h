@@ -69,6 +69,9 @@ void* iDB_GetType(void *aDB, const void *aKey, int aKeySize, int *aTypeSize);
  If successful, the return value is the size of the value of the corresponding record, else,
  it is -1. */
 int   iDB_GetTypeSize(void *aDB, const void *aKey, int aKeySize);
+
+/* Get the value of the key.
+ */
 void* iDB_GetValue(void *aDB, const void *aKey, int aKeySize, int *aValueSize);
 /* Get the size of the value of a record.
  If successful, the return value is the size of the value of the corresponding record, else,

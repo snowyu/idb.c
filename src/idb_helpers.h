@@ -43,6 +43,9 @@
 
  //Low-Level functions
  bool IsDirValueExists(const sds aDir, const sds aAttribute);
+ /* Get the value of the a Key(aDir) if successful, else return NULL
+  * U must free the result after using it.
+  */
  sds GetDirValue(const sds aDir, const sds aAttribute);
  bool SetDirValue(const sds aDir, const sds aValue, const sds aAttribute);
 
