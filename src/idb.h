@@ -43,7 +43,7 @@ struct _iDB {
   bool loadOnDemand;
   bool storeInXattr;            //enabled the xattr storage.
   bool storeInFile;             //enabled the file storage.
-  bool raiseOnTypeMismatch;     //raise error if Type Mismatch
+  bool raiseOnTypeMismatch;     //raise error if Type Mismatch when true
 };
 
 typedef struct _iDB iDB;
