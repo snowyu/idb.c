@@ -308,7 +308,7 @@ static int UrlDecode(char *vStr, int len)
         data++;
         dest++;
     }
-    
+
     *dest = (char) 0;
     return dest - vStr;
 }
@@ -318,7 +318,7 @@ static int UrlDecode(char *vStr, int len)
 #include "testhelp.h"
 
 //Note: sds.* zmalloc.* config.h come from redis src
-//gcc --std=c99 -I. -Ideps  -o test -DHAVE_UNISTD_H -DISDK_UTILS_TEST_MAIN isdk_utils.c deps/sds.c deps/zmalloc.c
+//gcc --std=c99 -I. -Ideps  -o test -DISDK_UTILS_TEST_MAIN isdk_utils.c deps/sds.c deps/zmalloc.c
 int main(void) {
     {
         ForceDirectories("testdir/good/better/best?", O_RWXRWXR_XPERMS);
@@ -335,15 +335,15 @@ int main(void) {
         close(fd);
         test_cond("DeleteDir('mytestfile')", DeleteDir("mytestfile") == 0);
         test_cond("DirectoryExists('mytestfile') is false", DirectoryExists("mytestfile") == 0);
-        char* s="testing encoding 'it' \"with\" path/haha/it and %& *?|<>.";
+        char* s="testing encoding 'it' \"with\" path/haha/it and %& *?|<>.\1\2\3\6";
         char* r=UrlEncode(s, NULL);
-        test_cond("UrlEncode('testing encoding 'it' \"with\" path/haha/it and %& *?|<>.', NULL)", strcmp(r, "testing encoding 'it' \"with\" path/haha/it and %25& *?|<>.")==0);
+        //printf("%s\n", r);
+        test_cond("UrlEncode('testing encoding 'it' \"with\" path/haha/it and %& *?|<>.', NULL)", strcmp(r, "testing encoding 'it' \"with\" path/haha/it and %25& *?|<>.%01%02%03%06")==0);
         char* r1=UrlEncode(s, " &*?|<>.");
-        test_cond("UrlEncode('testing encoding 'it' \"with\" path/haha/it and %& *?|<>.',  \" &*?|<>.\")", strcmp(r1, "testing%20encoding%20'it'%20\"with\"%20path/haha/it%20and%20%25%26%20%2A%3F%7C%3C%3E%2E")==0);
+        test_cond("UrlEncode('testing encoding 'it' \"with\" path/haha/it and %& *?|<>.',  \" &*?|<>.\")", strcmp(r1, "testing%20encoding%20'it'%20\"with\"%20path/haha/it%20and%20%25%26%20%2A%3F%7C%3C%3E%2E%01%02%03%06")==0);
         int i=UrlDecode(r, strlen(r));
         test_cond("UrlDecode('testing encoding 'it' \"with\" path/haha/it and *%3F%7C%3C%3E.').Length", i==strlen(s));
         test_cond("UrlDecode('testing encoding 'it' \"with\" path/haha/it and *%3F%7C%3C%3E.')", strcmp(s, r)==0);
-        //printf("%s\n",r);
         if(r) free(r);
     }
     test_report();
