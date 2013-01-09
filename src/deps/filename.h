@@ -14,19 +14,19 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#ifndef _FILENAME_H
-#define _FILENAME_H
+# ifndef _FILENAME_H
+# define _FILENAME_H
 
-#include <stdbool.h>
+# include <stdbool.h>
 
-#include "pathmax.h"
-#ifndef PATH_MAX
-# define PATH_MAX 8192
-#endif
+# include "pathmax.h"
+# ifndef PATH_MAX
+#  define PATH_MAX 8192
+# endif
 
-#ifdef __cplusplus
+# ifdef __cplusplus
 extern "C" {
-#endif
+# endif
 
 // Path Seperator:
 # define PATH_SEP_CHAR '/'
@@ -38,23 +38,52 @@ extern "C" {
                         it may be concatenated to a directory pathname.
    IS_PATH_WITH_DIR(P)  tests whether P contains a directory specification.
  */
-#if defined _WIN32 || defined __WIN32__ || defined __CYGWIN__ || defined __EMX__ || defined __DJGPP__
+#if (defined _WIN32 || defined __WIN32__ ||     \
+     defined __MSDOS__ || defined __CYGWIN__ || \
+     defined __EMX__ || defined __DJGPP__)
   /* Native Windows, Cygwin, OS/2, DOS */
+   /* This internal macro assumes ASCII, but all hosts that support drive
+      letters use ASCII.  */
+# define _IS_DRIVE_LETTER(C) (((unsigned int) (C) | ('a' - 'A')) - 'a'  \
+                              <= 'z' - 'a')
+//# define _IS_DRIVE_LETTER(C) ((C >= 'A' && C <= 'Z') || (C >= 'a' && C <= 'z'))
+
+# define HAS_DEVICE(P) (_IS_DRIVE_LETTER((P)[0]) && (P)[1] == ':')
+
+# define FILE_SYSTEM_PREFIX_LEN(Filename) \
+          (_IS_DRIVE_LETTER ((Filename)[0]) && (Filename)[1] == ':' ? 2 : 0)
+# ifndef __CYGWIN__
+#  define FILE_SYSTEM_DRIVE_PREFIX_CAN_BE_RELATIVE 1
+# endif
+
 # define ISSLASH(C) ((C) == '/' || (C) == '\\')
-# define HAS_DEVICE(P) \
-    ((((P)[0] >= 'A' && (P)[0] <= 'Z') || ((P)[0] >= 'a' && (P)[0] <= 'z')) \
-     && (P)[1] == ':')
-# define IS_ABSOLUTE_PATH(P) (ISSLASH ((P)[0]) || HAS_DEVICE (P))
+//# define IS_ABSOLUTE_PATH(P) (ISSLASH ((P)[0]) || HAS_DEVICE (P))
 # define IS_PATH_WITH_DIR(P) \
     (strchr (P, '/') != NULL || strchr (P, '\\') != NULL || HAS_DEVICE (P))
 # define FILE_SYSTEM_PREFIX_LEN(P) (HAS_DEVICE (P) ? 2 : 0)
 #else
   /* Unix */
 # define ISSLASH(C) ((C) == '/')
-# define IS_ABSOLUTE_PATH(P) ISSLASH ((P)[0])
+//# define IS_ABSOLUTE_PATH(P) ISSLASH ((P)[0])
 # define IS_PATH_WITH_DIR(P) (strchr (P, '/') != NULL)
 # define FILE_SYSTEM_PREFIX_LEN(P) 0
 #endif
+
+#ifndef FILE_SYSTEM_DRIVE_PREFIX_CAN_BE_RELATIVE
+# define FILE_SYSTEM_DRIVE_PREFIX_CAN_BE_RELATIVE 0
+#endif
+
+#if FILE_SYSTEM_DRIVE_PREFIX_CAN_BE_RELATIVE
+#  define IS_ABSOLUTE_FILE_NAME(F) ISSLASH ((F)[FILE_SYSTEM_PREFIX_LEN (F)])
+# else
+#  define IS_ABSOLUTE_FILE_NAME(F)                              \
+     (ISSLASH ((F)[0]) || FILE_SYSTEM_PREFIX_LEN (F) != 0)
+#endif
+#define IS_RELATIVE_FILE_NAME(F) (! IS_ABSOLUTE_FILE_NAME (F))
+
+# ifndef DOUBLE_SLASH_IS_DISTINCT_ROOT
+#  define DOUBLE_SLASH_IS_DISTINCT_ROOT 0
+# endif
 
 
 //check file_name whether be dot or dotdot.
@@ -69,6 +98,18 @@ dot_or_dotdot (char const *file_name)
   else
     return false;
 }
+
+# if GNULIB_DIRNAME
+char *base_name (char const *file);
+char *dir_name (char const *file);
+# endif
+
+//char *mdir_name (char const *file);
+size_t base_len (char const *file) ;//_GL_ATTRIBUTE_PURE;
+//size_t dir_len (char const *file) _GL_ATTRIBUTE_PURE;
+char *last_component (char const *file);// _GL_ATTRIBUTE_PURE;
+
+//bool strip_trailing_slashes (char *file);
 
 #ifdef __cplusplus
 }
