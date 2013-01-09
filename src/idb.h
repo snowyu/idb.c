@@ -29,6 +29,9 @@
 
  /*use the redis C dynamic strings library: sds.h*/
  #include "sds.h"
+ #include "isdk_xattr.h"
+ #include "isdk_utils.h"
+
  #include "idb_helpers.h"
 
 
@@ -37,7 +40,7 @@
   {
  #endif
 
-struct _iDB {
+struct __iDB {
   char *path;                   //the iDB database path.
   bool opened;                  //whether the internal database is opened
   bool loadOnDemand;
@@ -46,36 +49,35 @@ struct _iDB {
   bool raiseOnTypeMismatch;     //raise error if Type Mismatch when true
 };
 
-typedef struct _iDB iDB;
+typedef struct __iDB iDB;
 
 
 //create a database object.
 void* iDB_New(void);
 //free a iDB Database object.
 void  iDB_Free(void *aDB);
-/*
-  Open the Specified Database
-  *name: the database folder name
-
-  If successful, the return value is true, else, it is false.
-*/
-bool  iDB_Open(void *aDB, const sds aDBPath);
+//
+//  Open the Specified Database
+//  *name: the database folder name
+//
+//  If successful, the return value is true, else, it is false.
+bool  iDB_Open(void *aDB, sds aDBPath);
 bool  iDB_Close(void *aDB);
+
 
 //low-level operations:
 //Get the type of a key
 void* iDB_GetType(void *aDB, const void *aKey, int aKeySize, int *aTypeSize);
-/* Get the size of the type of a record.
- If successful, the return value is the size of the value of the corresponding record, else,
- it is -1. */
+// Get the size of the type of a record.
+// If successful, the return value is the size of the value of the corresponding record, else,
+// it is -1.
 int   iDB_GetTypeSize(void *aDB, const void *aKey, int aKeySize);
 
-/* Get the value of the key.
- */
+// Get the value of the key.
 void* iDB_GetValue(void *aDB, const void *aKey, int aKeySize, int *aValueSize);
-/* Get the size of the value of a record.
- If successful, the return value is the size of the value of the corresponding record, else,
- it is -1. */
+// Get the size of the value of a record.
+// If successful, the return value is the size of the value of the corresponding record, else,
+// it is -1.
 int   iDB_GetValueSize(void *aDB, const void *aKey, int aKeySize);
 bool  iDB_Delete(void *aDB, const void *aKey, int aKeySize);
 //Insert or update a record(key/calue) 
@@ -83,16 +85,18 @@ bool  iDB_Put(void *aDB, const void *aKey, int aKeySize, const void *aValue, int
 bool  iDB_Update(iDB *aDB, const void *aKey, int aKeySize, const void *aValue, int aValueSize, const void *aType, int aTypeSize);
 bool  iDB_Insert(iDB *aDB, const void *aKey, int aKeySize, const void *aValue, int aValueSize, const void *aType, int aTypeSize);
 //----------------------------
-/* Add an integer to a record in a database object.
- `aDB' specifies the abstract database object.
- `aKey' specifies the pointer to the region of the key.
- `aKeySize' specifies the size of the region of the key.
- `aNumber' specifies the additional value.
- If successful, the return value is the summation value, else, it is `INT_MIN'.
- If the corresponding record exists, the value is treated as an integer and is added to.  If no
- record corresponds, a new record of the additional value is stored. */
+// Add an integer to a record in a database object.
+// `aDB' specifies the abstract database object.
+// `aKey' specifies the pointer to the region of the key.
+// `aKeySize' specifies the size of the region of the key.
+// `aNumber' specifies the additional value.
+// If successful, the return value is the summation value, else, it is `INT_MIN'.
+// If the corresponding record exists, the value is treated as an integer and is added to.  If no
+// record corresponds, a new record of the additional value is stored. 
+//
 int    iDB_AddInt(void *aDB, const void *aKey, int aKeySize, int aNumber);
 double iDB_AddDouble(void *aDB, const char *aKey, int aKeySize, double aNumber);
+
 
  #ifdef __cplusplus
  }
