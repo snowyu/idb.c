@@ -98,6 +98,36 @@ int ForceDirectories(const char* aFolderPath, mode_t aMode)
     return (status);
 }
 
+//test the filename whether is a directory
+//return 0 = a file, 1 = a Dir, 2 = a symbolic dir, -999 = a symbolic file, -2 = Not Exists(ENOENT), < 0 others means error code.
+int IsDirectory(const char* aFileName)
+{
+    //char const *b = last_component(aFileName);
+    //size_t blen = strlen(b);
+    //bool vLooksLikeDir = (blen == 0 || ISSLASH(b[blen - 1]));
+    struct stat st;
+    //int result = 0;
+    int vStatResult = lstat(aFileName, &st);
+    int err = (vStatResult == 0 ? 0 : -errno);
+    if (!err) {
+      bool vIsLink = S_ISLNK(st.st_mode);
+      if (vIsLink) {
+          vStatResult = stat(aFileName, &st);
+          err = (vStatResult == 0 ? 0 : -errno);
+          if (err) {
+              return err;
+          }
+      }
+      bool vIsDir = S_ISDIR(st.st_mode);
+      if (vIsLink) {
+          err = (vIsDir ? 2 : -999);
+      } else {
+          err = (vIsDir ? 1 : 0);
+      }
+    }
+    return err;
+}
+
 //Join path2 to aPath
 sds sdsJoinPathLen(const sds aPath, const void *aPath2, const size_t len)
 {
@@ -325,8 +355,10 @@ int main(void) {
         test_cond("DirectoryExists('testdir/good/better/best?')", DirectoryExists("testdir/good/better/best?") == 1);
         test_cond("MoveDir(\"testdir/good/better\", \"testdir/good/ok\")", MoveDir("testdir/good/better", "testdir/good/ok")==0);
         test_cond("DirectoryExists('testdir/good/ok')", DirectoryExists("testdir/good/ok") == 1);
+        test_cond("IsDirectory('testdir/good/ok')", IsDirectory("testdir/good/ok") == 1);
         test_cond("DeleteDir('testdir')", DeleteDir("testdir") == 0);
         test_cond("DirectoryExists('testdir')", DirectoryExists("testdir") == 0);
+        test_cond("IsDirectory('testdir')", IsDirectory("testdir") == -2);
         int fd = open_or_create_file("mytestfile", 0, O_RW_RW_R__PERMS);
         test_cond("open_or_create_file(mytestfile):open not exists file", fd != 0);
         close(fd);
@@ -335,6 +367,7 @@ int main(void) {
         close(fd);
         test_cond("DeleteDir('mytestfile')", DeleteDir("mytestfile") == 0);
         test_cond("DirectoryExists('mytestfile') is false", DirectoryExists("mytestfile") == 0);
+        test_cond("IsDirectory('mytestfile') is false", IsDirectory("mytestfile") == -2);
         char* s="testing encoding 'it' \"with\" path/haha/it and %& *?|<>.\1\2\3\6";
         char* r=UrlEncode(s, NULL);
         //printf("%s\n", r);

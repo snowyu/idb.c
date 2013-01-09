@@ -54,6 +54,11 @@ int MoveDir(const char* aSrc, const char* aDest);
 //retrun 0 means successful.
 int DeleteDir(const char* aDir);
 
+//test the filename whether is a directory
+//return 0 = a file, 1 = a Dir, 2 = a symbolic dir, -999 = a symbolic file, -2 = Not Exists(ENOENT), < 0 others means error code.
+//See Also: DirectoryExists
+int IsDirectory(const char* aFileName);
+
 /*
   return
      -1: file exits.
