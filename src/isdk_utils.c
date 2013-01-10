@@ -139,9 +139,16 @@ sds sdsJoinPathLen(const sds aPath, const void *aPath2, const size_t len)
         result = sdscatlen(aPath, aPath2, len);
     }
     else {
-        result = sdscat(aPath, PATH_SEP_STR);
-        sdscatlen(result, aPath2, len);
+        result = aPath;
+        if (len > 0) {
+            if (aPath[sdslen(aPath)-1] != PATH_SEP_STR[0])
+                result = sdscat(aPath, PATH_SEP_STR);
+
+            result = sdscatlen(result, aPath2, len);
+        }
     }
+    //if (result && result[sdslen(result)-1] != PATH_SEP_STR[0])
+    //    result = sdscat(result, PATH_SEP_STR);
     return result;
 }
 
@@ -338,7 +345,7 @@ static int UrlDecode(char *vStr, int len)
         data++;
         dest++;
     }
-
+    
     *dest = (char) 0;
     return dest - vStr;
 }
@@ -368,16 +375,33 @@ int main(void) {
         test_cond("DeleteDir('mytestfile')", DeleteDir("mytestfile") == 0);
         test_cond("DirectoryExists('mytestfile') is false", DirectoryExists("mytestfile") == 0);
         test_cond("IsDirectory('mytestfile') is false", IsDirectory("mytestfile") == -2);
-        char* s="testing encoding 'it' \"with\" path/haha/it and %& *?|<>.\1\2\3\6";
+        char* s="testing encoding 'it' \"with\" path/haha/it and %& *?|<>.";
         char* r=UrlEncode(s, NULL);
-        //printf("%s\n", r);
-        test_cond("UrlEncode('testing encoding 'it' \"with\" path/haha/it and %& *?|<>.', NULL)", strcmp(r, "testing encoding 'it' \"with\" path/haha/it and %25& *?|<>.%01%02%03%06")==0);
+        test_cond("UrlEncode('testing encoding 'it' \"with\" path/haha/it and %& *?|<>.', NULL)", strcmp(r, "testing encoding 'it' \"with\" path/haha/it and %25& *?|<>.")==0);
         char* r1=UrlEncode(s, " &*?|<>.");
-        test_cond("UrlEncode('testing encoding 'it' \"with\" path/haha/it and %& *?|<>.',  \" &*?|<>.\")", strcmp(r1, "testing%20encoding%20'it'%20\"with\"%20path/haha/it%20and%20%25%26%20%2A%3F%7C%3C%3E%2E%01%02%03%06")==0);
+        test_cond("UrlEncode('testing encoding 'it' \"with\" path/haha/it and %& *?|<>.',  \" &*?|<>.\")", strcmp(r1, "testing%20encoding%20'it'%20\"with\"%20path/haha/it%20and%20%25%26%20%2A%3F%7C%3C%3E%2E")==0);
         int i=UrlDecode(r, strlen(r));
         test_cond("UrlDecode('testing encoding 'it' \"with\" path/haha/it and *%3F%7C%3C%3E.').Length", i==strlen(s));
         test_cond("UrlDecode('testing encoding 'it' \"with\" path/haha/it and *%3F%7C%3C%3E.')", strcmp(s, r)==0);
+        //printf("%s\n",r);
         if(r) free(r);
+        sds p1=sdsnew("mypath_1"), p2=sdsnew("sub_path2");
+        sds result = sdsJoinPathLen(NULL, p1, sdslen(p1));
+        test_cond("sdsJoinPathLen(NULL, p1, len(p1))",
+            result && sdslen(result) == 8 && memcmp(result, "mypath_1\0", 9) == 0
+        );
+        sdsfree(result);
+        result = sdsJoinPathLen(sdsdup(p1), NULL, 0);
+        test_cond("sdsJoinPathLen(p1, NULL, 0)",
+            result && sdslen(result) == 8 && memcmp(result, "mypath_1\0", 9) == 0
+        );
+        printf("%s, %s\n",p1, result);
+        sdsfree(result);
+        result = sdsJoinPathLen(sdsdup(p1), p2, sdslen(p2));
+        test_cond("sdsJoinPathLen(p1, p2, len(p2))",
+            result && sdslen(result) == 18 && memcmp(result, "mypath_1/sub_path2\0", 19) == 0
+        );
+        sdsfree(result);
     }
     test_report();
     return 0;

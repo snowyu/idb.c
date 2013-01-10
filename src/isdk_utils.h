@@ -82,8 +82,6 @@ static inline int DirectoryExists(const char *aFolderPath){
 //#include <unistd.h>
 //int symlink(const char *srcPath, const char *destPath); //make symbolic link(destPath) to a srcPath
 
-
-bool IsDirValueExists(const sds aDir, const sds aAttribute);
 int ForceDirectories(const char* aFolderPath, mode_t aMode);
 
 //Join aPath and aPath2
