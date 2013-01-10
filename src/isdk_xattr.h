@@ -23,8 +23,6 @@
 #ifndef isdk_xattr__h
  #define isdk_xattr__h
 
-#include <stdbool.h>
-
 /*use the redis C dynamic strings library: sds.h*/
 #include "sds.h"
 
@@ -53,10 +51,11 @@ static ssize_t xattr_fremovexattr(int fd, const char *name, int options);
 static ssize_t xattr_flistxattr(int fd, char *namebuf, size_t size, int options);
 
 
-static bool IsXattrExists(const char* aFile, const char* aKey);
-static sds GetXattr(const char* aFile, const char* aKey);
+ssize_t ListXattr(const char *path, char *namebuf, size_t size);
+int IsXattrExists(const char* aFile, const char* aKey);
+sds GetXattr(const char* aFile, const char* aKey);
 //0: ok; others: errcode.
-static ssize_t SetXattr(const char* aFile, const char* aKey, sds aValue);
+ssize_t SetXattr(const char* aFile, const char* aKey, sds aValue);
 
 
  #ifdef __cplusplus

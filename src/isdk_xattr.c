@@ -589,19 +589,20 @@ static ssize_t xattr_flistxattr(int fd, char *namebuf, size_t size, int options)
  * vSize = ListXattr(path, buf, vSize);
  *
  */
-static ssize_t ListXattr(const char *path, char *namebuf,
+ssize_t ListXattr(const char *path, char *namebuf,
                                size_t size)
 {
     return xattr_listxattr(path, namebuf, size, 0);
 }
 
-static bool IsXattrExists(const char* aFile, const char* aKey)
+int IsXattrExists(const char* aFile, const char* aKey)
 {
     ssize_t vLen = xattr_getxattr(aFile, aKey, NULL, 0, 0, 0);
+	//int result = vLen
     return vLen >= 0;
 }
 
-static sds GetXattr(const char* aFile, const char* aKey)
+sds GetXattr(const char* aFile, const char* aKey)
 {
     int vLen = xattr_getxattr(aFile, aKey, NULL, 0, 0, 0);
     sds result = NULL;
@@ -623,9 +624,10 @@ static sds GetXattr(const char* aFile, const char* aKey)
 }
 
 //0 means ok, or error code return
-static ssize_t SetXattr(const char* aFile, const char* aKey, sds aValue)
+ssize_t SetXattr(const char* aFile, const char* aKey, sds aValue)
 {
-    int vLen = sdslen(aValue);
+    int vLen = 0;
+	if (aValue) vLen = sdslen(aValue);
     ssize_t result = xattr_setxattr(aFile, aKey, aValue, vLen, 0, 0);
     return result;
 }
@@ -637,7 +639,7 @@ static ssize_t SetXattr(const char* aFile, const char* aKey, sds aValue)
 #include <fcntl.h>
 #include "testhelp.h"
 
-//gcc --std=c99 -I. -Ideps  -o test -DHAVE_UNISTD_H -DISDK_XATTR_TEST_MAIN isdk_xattr.c deps/sds.c deps/zmalloc.c
+//gcc --std=c99 -I. -Ideps  -o test -DISDK_XATTR_TEST_MAIN isdk_xattr.c deps/sds.c deps/zmalloc.c
 int main(void) {
     {
         int fd = open ("mytestfile", O_WRONLY | O_CREAT | O_NONBLOCK | O_NOCTTY,
@@ -652,7 +654,13 @@ int main(void) {
         test_cond("IsXattrExists(nosuchmytestfile, notexists)", !IsXattrExists("nosuchmytestfile", "notexists"));
         sds result = GetXattr(path, key);
         test_cond("GetXattr(mytestfile, mydname)",
-                result && sdslen(result) == 9 && memcmp(result, "hi world!\0", 10) == 0
+            result && sdslen(result) == 9 && memcmp(result, "hi world!\0", 10) == 0
+        );
+        if (result) sdsfree(result);
+        test_cond("SetXattr(mytestfile, mydname, '')", SetXattr(path, key, NULL)== 0);
+        result = GetXattr(path, key);
+        test_cond("GetXattr(mytestfile, mydname)",
+            result && sdslen(result) == 0 && memcmp(result, "\0", 1) == 0
         );
         sdsfree(path);
         sdsfree(key);
