@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012 Riceball LEE(snowyu.lee@gmail.com)
+  Copyright (c) 2012-2013 Riceball LEE(snowyu.lee@gmail.com)
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -42,12 +42,18 @@
  #endif
 
  //Low-Level functions
- bool IsDirValueExists(const sds aDir, const sds aAttribute);
+ //-1 means err, 0 means false, 1 means true.
+ int IsDirValueExists(const sds aDir, const sds aAttribute);
  /* Get the value of the a Key(aDir) if successful, else return NULL
   * U must free the result after using it.
   */
  sds GetDirValue(const sds aDir, const sds aAttribute);
- bool SetDirValue(const sds aDir, const sds aValue, const sds aAttribute);
+ int SetDirValue(const sds aDir, const sds aValue, const sds aAttribute);
+
+ int iIsExists(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType);
+ sds iGet(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType);
+ int iPut(const sds aDir, const char* aKey, const int aKeyLen, const sds aValue, const sds aAttribute, const int aStoreType);
+ int iDelete(const sds aDir, const char* aKey, const int aKeyLen);
 
  #ifdef __cplusplus
  }
