@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012 Riceball LEE(snowyu.lee@gmail.com)
+  Copyright (c) 2012-2013 Riceball LEE(snowyu.lee@gmail.com)
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
