@@ -540,6 +540,7 @@ int main(void) {
         fd1 = open_or_create_file("testlistdir/12testfile.inc", 0, O_RW_RW_R__PERMS);
         close(fd1);
         symlink("atestfile", "testlistdir/afilelink");
+        symlink("brokenlink", "testlistdir/nosuchfile");
         puts("ListDir('1*', 1 << LIST_DIR)");
         puts("----------------------------");
         list* vList = ListDir("testlistdir", "1*", 1 << LIST_DIR);
@@ -577,6 +578,38 @@ int main(void) {
             vItem = sdsnew("testlistdir/1234");
             listAddNodeTail(vExpectedList, vItem);
             vItem = sdsnew("testlistdir/12testfile.inc");
+            listAddNodeTail(vExpectedList, vItem);
+            test_list(vList, vExpectedList);
+            listRelease(vList);
+            listRelease(vExpectedList);
+        } else {
+            printf("failed:%d\n", errno);
+        }
+        puts("----------------------------");
+        puts("ListDir('b*', 1 << LIST_DIR)");
+        puts("----------------------------");
+        vList = ListDir("testlistdir", "b*", 1 << LIST_DIR);
+        vExpectedList = sdslistCreate();
+        if (vList) {
+            sds vItem;
+            vItem = sdsnew("testlistdir/better");
+            listAddNodeTail(vExpectedList, vItem);
+            vItem = sdsnew("testlistdir/betterlink");
+            listAddNodeTail(vExpectedList, vItem);
+            test_list(vList, vExpectedList);
+            listRelease(vList);
+            listRelease(vExpectedList);
+        } else {
+            printf("failed:%d\n", errno);
+        }
+        puts("----------------------------");
+        puts("ListDir('b*', (1 << LIST_DIR)|(1<<LIST_PHYSICAL)");
+        puts("----------------------------");
+        vList = ListDir("testlistdir", "b*", (1 << LIST_DIR)|(1<<LIST_PHYSICAL));
+        vExpectedList = sdslistCreate();
+        if (vList) {
+            sds vItem;
+            vItem = sdsnew("testlistdir/better");
             listAddNodeTail(vExpectedList, vItem);
             test_list(vList, vExpectedList);
             listRelease(vList);
