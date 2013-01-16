@@ -29,11 +29,19 @@
  #include "sysstat.h"    /* mode_t for Windows - <sys/types.h> for POSIX */
  /*use the redis C dynamic strings library: sds.h*/
  #include "sds.h"
+ #include "adlist.h"
  #include "filename.h"
 
  #define O_RW_RW_R__PERMS    (S_IWUSR|S_IRUSR|S_IWGRP|S_IRGRP|S_IROTH)
  #define O_RWXRWXR_XPERMS    (S_IWUSR|S_IXUSR|S_IRUSR|S_IWGRP|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH)
  #define O_EXCL_CREAT        (O_EXCL|O_CREAT)
+ // the ListDir Options:
+ #define LIST_DESCENDING            0  //the list dir order
+ #define LIST_PHYSICAL              1  //list physical files or logical files(following the symbolic files).
+ #define LIST_DIR                   2  //list directories in the aDir
+ #define LIST_FILE                  3  //list files in the aDir
+ #define LIST_SYMBOLIC              4  //list symbolic links in the aDir
+ #define LIST_SYMBOLIC_NONE         5  //list symbolic links with a non-existent target in the aDir
 
  #ifdef __cplusplus
  extern "C"

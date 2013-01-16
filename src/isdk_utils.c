@@ -44,6 +44,7 @@
 #include <stdlib.h>
 #include <fts.h>            /* Traverse a file hierarchy. */
 #include <fcntl.h>
+#include <fnmatch.h>
 #include "isdk_utils.h"
 
 
@@ -173,9 +174,9 @@ int MoveDir(const char* aSrc, const char* aDest)
 //retrun 0 means successful.
 int DeleteDir(const char* aDir)
 {
-    const char* paths[] = {aDir, 0};
+    const char* vPaths[] = {aDir, 0};
     int result = 0;
-    FTS *tree = fts_open((char**)&paths, FTS_NOCHDIR|FTS_NOSTAT|FTS_PHYSICAL, 0);
+    FTS *tree = fts_open((char**)&vPaths, FTS_NOCHDIR|FTS_NOSTAT|FTS_PHYSICAL, 0);
     if (tree) {
         FTSENT *node;
         while ((node = fts_read(tree)) && !result) {
@@ -222,6 +223,146 @@ int DeleteDir(const char* aDir)
     return result;
 }
 
+
+//the descending sort functions for List
+//the default is ascendant sort.
+static int _dir_descending_compare(const FTSENT **a, const FTSENT **b)
+{
+    return -strcmp((*a)->fts_name, (*b)->fts_name);;
+}
+
+static void _sdslist_item_free(void* ptr)
+{
+    if (ptr) sdsfree(ptr);
+}
+
+static void* _sdslist_item_dup(void* ptr)
+{
+    sds result = NULL;
+    if (ptr) result = sdsdup(ptr);
+    return  result;
+}
+
+static int _sdslist_item_match(void* ptr, void* key)
+{
+    return strcmp(ptr, key);
+}
+
+static list* sdslistCreate()
+{
+    list* result = listCreate();
+    listSetDupMethod(result, _sdslist_item_dup);
+    listSetFreeMethod(result, _sdslist_item_free);
+    listSetMatchMethod(result, _sdslist_item_match);
+    return result;
+}
+
+//List files or directories in the aDir.
+//aOptions: the list dir options set:
+//  * LIST_DESCENDING(0Bit): the list dir order
+//  * LIST_PHYSICAL(1Bit): list physical files or logical files(following the symbolic files).
+//  * LIST_DIR(2Bit): list directories in the aDir
+//  * LIST_FILE(3Bit): list files in the aDir
+//  * LIST_SYMBOLIC(4Bit): list symbolic links in the aDir
+//  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
+//retrun 0 means failed, or return the list of the matched directories(the value is sds type).
+list* ListDir(const char* aDir, const char* aPattern, int aOptions)
+{
+    list* result = sdslistCreate();
+    int vErrno = 0;
+    const char* vPaths[] = {aDir, 0};
+    int (*vComparer)(const FTSENT **, const FTSENT **) = NULL;
+    if (BIT_CHECK(aOptions, LIST_DESCENDING)) vComparer = _dir_descending_compare;
+    int vFTSOptions = FTS_NOCHDIR|FTS_NOSTAT;
+    if (BIT_CHECK(aOptions, LIST_PHYSICAL)) {
+        vFTSOptions = vFTSOptions | FTS_PHYSICAL;
+    } else {
+        vFTSOptions = vFTSOptions | FTS_LOGICAL;
+    }
+
+    FTS *tree = fts_open((char**)&vPaths, vFTSOptions, vComparer);
+    sds s;
+    if (tree) {
+        FTSENT *node;
+        while ((node = fts_read(tree)) && !vErrno) {
+            switch (node->fts_info) {
+            case FTS_DP: //A directory being visited in post-order.
+                if (BIT_CHECK(aOptions, LIST_DIR)) {
+                    //printf("dir try: %s\n", node->fts_path);
+                    if (!aPattern || fnmatch(aPattern, node->fts_name, FNM_PERIOD) == 0) {
+                        s = sdsnew(node->fts_path);
+                        listAddNodeTail(result, s);
+                        //printf("Dir: %s\n",s);
+                    }
+                }
+                /*printf("dir named %s at depth %d, "
+                    "accessible via %s from the current directory "
+                    "or via %s from the original starting directory\n",
+                    node->fts_name, node->fts_level,
+                    node->fts_accpath, node->fts_path); // */
+
+                break;
+            case FTS_SL: //A symbolic link.
+                if (BIT_CHECK(aOptions, LIST_SYMBOLIC)) {
+                    if (!aPattern || fnmatch(aPattern, node->fts_name, FNM_PERIOD) == 0) {
+                        s = sdsnew(node->fts_path);
+                        listAddNodeTail(result, s);
+                    }
+                }
+                break;
+            case FTS_SLNONE: //A symbolic link with a non-existent target.
+                if (BIT_CHECK(aOptions, LIST_SYMBOLIC)) {
+                    if (!aPattern || fnmatch(aPattern, node->fts_name, FNM_PERIOD) == 0) {
+                        s = sdsnew(node->fts_path);
+                        listAddNodeTail(result, s);
+                    }
+                }
+                break;
+            case FTS_F: //A regular file.
+            case FTS_NSOK: // A file for which no stat(2) information was requested.
+                if (BIT_CHECK(aOptions, LIST_FILE)) {
+                    /*
+                     * Check if name matches pattern. If so, then print
+                     * path. This check uses FNM_PERIOD, so "*.c" will not
+                     * match ".invisible.c".
+                     */
+                    if (!aPattern || fnmatch(aPattern, node->fts_name, FNM_PERIOD) == 0) {
+                        s = sdsnew(node->fts_path);
+                        listAddNodeTail(result, s);
+                    }
+                }
+
+                /*printf("file named %s at depth %d, "
+                    "accessible via %s from the current directory "
+                    "or via %s from the original starting directory\n",
+                    node->fts_name, node->fts_level,
+                    node->fts_accpath, node->fts_path); // */
+                break;
+            case FTS_DC: //A directory that causes a cycle in the tree.
+                fts_set(tree, node, FTS_SKIP);
+                vErrno = EDEADLK;
+                break;
+            case FTS_DNR: //A directory which cannot be read.  This is an error
+            case FTS_NS:  //A file for which no stat(2) information was available.
+            case FTS_ERR:
+                printf("error file name: %s\n", node->fts_path);
+                vErrno = node->fts_errno;
+                break;
+            default:
+                break;
+            }
+        }
+        if (errno) vErrno = errno;
+        fts_close(tree);
+    }
+
+    if (vErrno) {
+        listRelease(result);
+        result = 0;
+    }
+
+    return result;
+}
 
 static int is_printable(char c) {
     return ( 32 <= c && c <= 126 && c != '%');
@@ -355,9 +496,98 @@ static int UrlDecode(char *vStr, int len)
 #include "testhelp.h"
 
 //Note: sds.* zmalloc.* config.h come from redis src
-//gcc --std=c99 -I. -Ideps  -o test -DISDK_UTILS_TEST_MAIN isdk_utils.c deps/sds.c deps/zmalloc.c
+//gcc --std=c99 -I. -Ideps  -o test -DISDK_UTILS_TEST_MAIN isdk_utils.c deps/sds.c deps/zmalloc.c, deps/adlist.c
+void test_list(list* result, list* expected) {
+    if (expected) {
+        test_cond("List SHOULD NOT NULL", result);
+        test_cond("List Length Test", listLength(result)==listLength(expected));
+        if (listLength(result)==listLength(expected)) {
+            listIter* vIter = listGetIterator(result, AL_START_HEAD);
+            listIter* vIter1 = listGetIterator(expected, AL_START_HEAD);
+            if (vIter1) {
+                test_cond("List iterator SHOULD NOT NULL", vIter);
+                listNode* node = listNext(vIter);
+                listNode* node1 = listNext(vIter1);
+                sds s;
+                char* s1 = "LIST Item:";
+                while (node1) {
+                    test_cond("LIST NODE should not NULL", node);
+                    s = sdsnew(s1);
+                    s = sdscatsds(s, (sds)listNodeValue(node1));
+                    test_cond(s, strcmp(listNodeValue(node), listNodeValue(node1))==0);
+                    sdsfree(s);
+                    node = listNext(vIter);
+                    node1 = listNext(vIter1);
+                }
+                listReleaseIterator(vIter1);
+                listReleaseIterator(vIter);
+            }
+        } else {
+            printf("expected Length is %lu, but it is %lu in fact.\n", listLength(expected), listLength(result));
+        }
+    }
+}
+
 int main(void) {
     {
+        DeleteDir("testlistdir");
+        ForceDirectories("testlistdir/good", O_RWXRWXR_XPERMS);
+        ForceDirectories("testlistdir/better", O_RWXRWXR_XPERMS);
+        ForceDirectories("testlistdir/1234", O_RWXRWXR_XPERMS);
+        symlink("better", "testlistdir/betterlink");
+        int fd1 = open_or_create_file("testlistdir/atestfile", 0, O_RW_RW_R__PERMS);
+        close(fd1);
+        fd1 = open_or_create_file("testlistdir/12testfile.inc", 0, O_RW_RW_R__PERMS);
+        close(fd1);
+        symlink("atestfile", "testlistdir/afilelink");
+        puts("ListDir('1*', 1 << LIST_DIR)");
+        puts("----------------------------");
+        list* vList = ListDir("testlistdir", "1*", 1 << LIST_DIR);
+        list* vExpectedList = sdslistCreate();
+        if (vList) {
+            sds vItem = sdsnew("testlistdir/1234");
+            listAddNodeTail(vExpectedList, vItem);
+            test_list(vList, vExpectedList);
+            listRelease(vList);
+            listRelease(vExpectedList);
+        } else {
+            printf("failed:%d\n", errno);
+        }
+        puts("----------------------------");
+        puts("ListDir('1*', 1 << LIST_FILE)");
+        puts("----------------------------");
+        vList = ListDir("testlistdir", "1*", 1 << LIST_FILE);
+        vExpectedList = sdslistCreate();
+        if (vList) {
+            sds vItem = sdsnew("testlistdir/12testfile.inc");
+            listAddNodeTail(vExpectedList, vItem);
+            test_list(vList, vExpectedList);
+            listRelease(vList);
+            listRelease(vExpectedList);
+        } else {
+            printf("failed:%d\n", errno);
+        }
+        puts("----------------------------");
+        puts("ListDir('1*', ((1 << LIST_DIR) | (1 << LIST_FILE))");
+        puts("----------------------------");
+        vList = ListDir("testlistdir", "1*", ((1 << LIST_DIR) | (1 << LIST_FILE)));
+        vExpectedList = sdslistCreate();
+        if (vList) {
+            sds vItem;
+            vItem = sdsnew("testlistdir/1234");
+            listAddNodeTail(vExpectedList, vItem);
+            vItem = sdsnew("testlistdir/12testfile.inc");
+            listAddNodeTail(vExpectedList, vItem);
+            test_list(vList, vExpectedList);
+            listRelease(vList);
+            listRelease(vExpectedList);
+        } else {
+            printf("failed:%d\n", errno);
+        }
+        puts("----------------------------");
+
+
+
         ForceDirectories("testdir/good/better/best?", O_RWXRWXR_XPERMS);
         test_cond("DirectoryExists('testdir/good/better/best?')", DirectoryExists("testdir/good/better/best?") == 1);
         test_cond("MoveDir(\"testdir/good/better\", \"testdir/good/ok\")", MoveDir("testdir/good/better", "testdir/good/ok")==0);
@@ -395,7 +625,7 @@ int main(void) {
         test_cond("sdsJoinPathLen(p1, NULL, 0)",
             result && sdslen(result) == 8 && memcmp(result, "mypath_1\0", 9) == 0
         );
-        printf("%s, %s\n",p1, result);
+        //printf("%s, %s\n",p1, result);
         sdsfree(result);
         result = sdsJoinPathLen(sdsdup(p1), p2, sdslen(p2));
         test_cond("sdsJoinPathLen(p1, p2, len(p2))",
