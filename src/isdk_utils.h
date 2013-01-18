@@ -62,6 +62,38 @@ int MoveDir(const char* aSrc, const char* aDest);
 //retrun 0 means successful.
 int DeleteDir(const char* aDir);
 
+//Walk through files or directories in the aDir.
+//aOptions: the list dir options set:
+//  * LIST_DESCENDING(0Bit): the list dir order
+//  * LIST_PHYSICAL(1Bit): list physical files or logical files(following the symbolic files).
+//  * LIST_DIR(2Bit): list directories in the aDir
+//  * LIST_FILE(3Bit): list files in the aDir
+//  * LIST_SYMBOLIC(4Bit): list symbolic links in the aDir
+//  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
+//aProcessor: the processor for matched item
+// retrun matched count if successful, or, means errno(<0).
+int WalkDir(const char* aDir, const char* aPattern, int aOptions, int(*aProcessor)(int aCount, const FTSENT *aNode));
+//Count files or directories in the aDir.
+//aOptions: the list dir options set:
+//  * LIST_DESCENDING(0Bit): the list dir order
+//  * LIST_PHYSICAL(1Bit): list physical files or logical files(following the symbolic files).
+//  * LIST_DIR(2Bit): list directories in the aDir
+//  * LIST_FILE(3Bit): list files in the aDir
+//  * LIST_SYMBOLIC(4Bit): list symbolic links in the aDir
+//  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
+//retrun <0 means failed errno.
+int CountDir(const char* aDir, const char* aPattern, int aOptions);
+//List files or directories in the aDir.
+//aOptions: the list dir options set:
+//  * LIST_DESCENDING(0Bit): the list dir order
+//  * LIST_PHYSICAL(1Bit): list physical files or logical files(following the symbolic files).
+//  * LIST_DIR(2Bit): list directories in the aDir
+//  * LIST_FILE(3Bit): list files in the aDir
+//  * LIST_SYMBOLIC(4Bit): list symbolic links in the aDir
+//  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
+//retrun 0 means failed, or return the list of the matched directories(the value is sds type).
+list* ListDir(const char* aDir, const char* aPattern, int aOptions);
+
 //test the filename whether is a directory
 //return 0 = a file, 1 = a Dir, 2 = a symbolic dir, -999 = a symbolic file, -2 = Not Exists(ENOENT), < 0 others means error code.
 //See Also: DirectoryExists

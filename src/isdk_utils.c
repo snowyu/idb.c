@@ -257,7 +257,7 @@ static list* sdslistCreate()
     return result;
 }
 
-//List files or directories in the aDir.
+//Walk through files or directories in the aDir.
 //aOptions: the list dir options set:
 //  * LIST_DESCENDING(0Bit): the list dir order
 //  * LIST_PHYSICAL(1Bit): list physical files or logical files(following the symbolic files).
@@ -265,10 +265,11 @@ static list* sdslistCreate()
 //  * LIST_FILE(3Bit): list files in the aDir
 //  * LIST_SYMBOLIC(4Bit): list symbolic links in the aDir
 //  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
-//retrun 0 means failed, or return the list of the matched directories(the value is sds type).
-list* ListDir(const char* aDir, const char* aPattern, int aOptions)
+//aProcessor: the processor for matched item
+// retrun matched count if successful, or, means errno(<0).
+int WalkDir(const char* aDir, const char* aPattern, int aOptions, int(*aProcessor)(int aCount,const FTSENT *aNode))
 {
-    list* result = sdslistCreate();
+    int result = 0;
     int vErrno = 0;
     const char* vPaths[] = {aDir, 0};
     int (*vComparer)(const FTSENT **, const FTSENT **) = NULL;
@@ -281,7 +282,6 @@ list* ListDir(const char* aDir, const char* aPattern, int aOptions)
     }
 
     FTS *tree = fts_open((char**)&vPaths, vFTSOptions, vComparer);
-    sds s;
     if (tree) {
         FTSENT *node;
         while ((node = fts_read(tree)) && !vErrno) {
@@ -290,8 +290,8 @@ list* ListDir(const char* aDir, const char* aPattern, int aOptions)
                 if (BIT_CHECK(aOptions, LIST_DIR)) {
                     //printf("dir try: %s\n", node->fts_path);
                     if (!aPattern || fnmatch(aPattern, node->fts_name, FNM_PERIOD) == 0) {
-                        s = sdsnew(node->fts_path);
-                        listAddNodeTail(result, s);
+                        result++;
+                        if (aProcessor) aProcessor(result, node);
                         //printf("Dir: %s\n",s);
                     }
                 }
@@ -305,16 +305,16 @@ list* ListDir(const char* aDir, const char* aPattern, int aOptions)
             case FTS_SL: //A symbolic link.
                 if (BIT_CHECK(aOptions, LIST_SYMBOLIC)) {
                     if (!aPattern || fnmatch(aPattern, node->fts_name, FNM_PERIOD) == 0) {
-                        s = sdsnew(node->fts_path);
-                        listAddNodeTail(result, s);
+                        result++;
+                        if (aProcessor) aProcessor(result, node);
                     }
                 }
                 break;
             case FTS_SLNONE: //A symbolic link with a non-existent target.
                 if (BIT_CHECK(aOptions, LIST_SYMBOLIC)) {
                     if (!aPattern || fnmatch(aPattern, node->fts_name, FNM_PERIOD) == 0) {
-                        s = sdsnew(node->fts_path);
-                        listAddNodeTail(result, s);
+                        result++;
+                        if (aProcessor) aProcessor(result, node);
                     }
                 }
                 break;
@@ -327,8 +327,8 @@ list* ListDir(const char* aDir, const char* aPattern, int aOptions)
                      * match ".invisible.c".
                      */
                     if (!aPattern || fnmatch(aPattern, node->fts_name, FNM_PERIOD) == 0) {
-                        s = sdsnew(node->fts_path);
-                        listAddNodeTail(result, s);
+                        result++;
+                        if (aProcessor) aProcessor(result, node);
                     }
                 }
 
@@ -355,10 +355,47 @@ list* ListDir(const char* aDir, const char* aPattern, int aOptions)
         if (errno) vErrno = errno;
         fts_close(tree);
     }
+    if (vErrno) return vErrno < 0 ? vErrno:-vErrno;
+    return result;
+}
 
-    if (vErrno) {
+//Count files or directories in the aDir.
+//aOptions: the list dir options set:
+//  * LIST_DESCENDING(0Bit): the list dir order
+//  * LIST_PHYSICAL(1Bit): list physical files or logical files(following the symbolic files).
+//  * LIST_DIR(2Bit): list directories in the aDir
+//  * LIST_FILE(3Bit): list files in the aDir
+//  * LIST_SYMBOLIC(4Bit): list symbolic links in the aDir
+//  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
+//retrun <0 means failed errno.
+int CountDir(const char* aDir, const char* aPattern, int aOptions)
+{
+    return WalkDir(aDir, aPattern, aOptions, NULL);
+}
+
+//List files or directories in the aDir.
+//aOptions: the list dir options set:
+//  * LIST_DESCENDING(0Bit): the list dir order
+//  * LIST_PHYSICAL(1Bit): list physical files or logical files(following the symbolic files).
+//  * LIST_DIR(2Bit): list directories in the aDir
+//  * LIST_FILE(3Bit): list files in the aDir
+//  * LIST_SYMBOLIC(4Bit): list symbolic links in the aDir
+//  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
+//retrun 0 means failed, or return the list of the matched directories(the value is sds type).
+list* ListDir(const char* aDir, const char* aPattern, int aOptions)
+{
+    list* result = sdslistCreate();
+    sds s;
+    int process_dir(int aCount, const FTSENT *aNode){
+        s = sdsnew(aNode->fts_path);
+        listAddNodeTail(result, s);
+     }
+    int vErrno = WalkDir(aDir, aPattern, aOptions, process_dir);
+
+
+    if (vErrno < 0) {
         listRelease(result);
-        result = 0;
+        result = NULL;
     }
 
     return result;
@@ -496,7 +533,7 @@ static int UrlDecode(char *vStr, int len)
 #include "testhelp.h"
 
 //Note: sds.* zmalloc.* config.h come from redis src
-//gcc --std=c99 -I. -Ideps  -o test -DISDK_UTILS_TEST_MAIN isdk_utils.c deps/sds.c deps/zmalloc.c, deps/adlist.c
+//gcc -fnested-functions --std=c99 -I. -Ideps  -o test -DISDK_UTILS_TEST_MAIN isdk_utils.c deps/sds.c deps/zmalloc.c deps/adlist.c
 void test_list(list* result, list* expected) {
     if (expected) {
         test_cond("List SHOULD NOT NULL", result);
@@ -544,6 +581,7 @@ int main(void) {
         puts("ListDir('1*', 1 << LIST_DIR)");
         puts("----------------------------");
         list* vList = ListDir("testlistdir", "1*", 1 << LIST_DIR);
+        test_cond("CountDir", 1==CountDir("testlistdir", "1*", 1 << LIST_DIR));
         list* vExpectedList = sdslistCreate();
         if (vList) {
             sds vItem = sdsnew("testlistdir/1234");
@@ -558,6 +596,7 @@ int main(void) {
         puts("ListDir('1*', 1 << LIST_FILE)");
         puts("----------------------------");
         vList = ListDir("testlistdir", "1*", 1 << LIST_FILE);
+        test_cond("CountDir", 1==CountDir("testlistdir", "1*", 1 << LIST_FILE));
         vExpectedList = sdslistCreate();
         if (vList) {
             sds vItem = sdsnew("testlistdir/12testfile.inc");
@@ -572,6 +611,7 @@ int main(void) {
         puts("ListDir('1*', ((1 << LIST_DIR) | (1 << LIST_FILE))");
         puts("----------------------------");
         vList = ListDir("testlistdir", "1*", ((1 << LIST_DIR) | (1 << LIST_FILE)));
+        test_cond("CountDir", 2==CountDir("testlistdir", "1*", ((1 << LIST_DIR) | (1 << LIST_FILE))));
         vExpectedList = sdslistCreate();
         if (vList) {
             sds vItem;
@@ -589,7 +629,8 @@ int main(void) {
         puts("ListDir('b*', 1 << LIST_DIR)");
         puts("----------------------------");
         vList = ListDir("testlistdir", "b*", 1 << LIST_DIR);
-        vExpectedList = sdslistCreate();
+        test_cond("CountDir", 2==CountDir("testlistdir", "b*", 1 << LIST_DIR));
+         vExpectedList = sdslistCreate();
         if (vList) {
             sds vItem;
             vItem = sdsnew("testlistdir/better");
