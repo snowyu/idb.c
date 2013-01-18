@@ -391,7 +391,6 @@ static int process_dir(int aCount, const FTSENT *aNode, void *aPtr){
 list* ListDir(const char* aDir, const char* aPattern, int aOptions)
 {
     list* result = sdslistCreate();
-    sds s;
     int vErrno = WalkDir(aDir, aPattern, aOptions, process_dir, result);
 
 
