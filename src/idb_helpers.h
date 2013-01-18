@@ -36,6 +36,12 @@
  #define IDB_VALUE_NAME ".value"
  #define XATTR_PREFIX  "user."
 
+ //the store types:
+ #define STORE_IN_FILE  1
+ #define STORE_IN_XATTR 2
+ #define STORE_IN_FILE_BIT  0 //the 0 bit
+ #define STORE_IN_XATTR_BIT 1 //the 1 bit
+
  #ifdef __cplusplus
  extern "C"
   {

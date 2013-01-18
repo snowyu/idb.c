@@ -171,7 +171,7 @@ int iDelete(const sds aDir, const char* aKey, const int aKeyLen){
 #include "testhelp.h"
 
 //Note: sds.* zmalloc.* config.h come from redis src
-//gcc --std=c99 -I. -Ideps  -o test -DIDB_HELPER_TEST_MAIN idb_helpers.c isdk_xattr.c isdk_utils.c deps/sds.c deps/zmalloc.c
+//gcc --std=c99 -I. -Ideps  -o test -DIDB_HELPER_TEST_MAIN idb_helpers.c isdk_xattr.c isdk_utils.c deps/sds.c deps/zmalloc.c deps/adlist.c
 int main(int argc, char **argv) 
 {
     {
