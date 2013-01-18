@@ -267,7 +267,7 @@ static list* sdslistCreate()
 //  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
 //aProcessor: the processor for matched item
 // retrun matched count if successful, or, means errno(<0).
-int WalkDir(const char* aDir, const char* aPattern, int aOptions, int(*aProcessor)(int aCount,const FTSENT *aNode))
+int WalkDir(const char* aDir, const char* aPattern, int aOptions, int(*aProcessor)(int aCount,const FTSENT *aNode, void *aPtr), void *aPtr)
 {
     int result = 0;
     int vErrno = 0;
@@ -291,7 +291,7 @@ int WalkDir(const char* aDir, const char* aPattern, int aOptions, int(*aProcesso
                     //printf("dir try: %s\n", node->fts_path);
                     if (!aPattern || fnmatch(aPattern, node->fts_name, FNM_PERIOD) == 0) {
                         result++;
-                        if (aProcessor) aProcessor(result, node);
+                        if (aProcessor) aProcessor(result, node, aPtr);
                         //printf("Dir: %s\n",s);
                     }
                 }
@@ -306,7 +306,7 @@ int WalkDir(const char* aDir, const char* aPattern, int aOptions, int(*aProcesso
                 if (BIT_CHECK(aOptions, LIST_SYMBOLIC)) {
                     if (!aPattern || fnmatch(aPattern, node->fts_name, FNM_PERIOD) == 0) {
                         result++;
-                        if (aProcessor) aProcessor(result, node);
+                        if (aProcessor) aProcessor(result, node, aPtr);
                     }
                 }
                 break;
@@ -314,7 +314,7 @@ int WalkDir(const char* aDir, const char* aPattern, int aOptions, int(*aProcesso
                 if (BIT_CHECK(aOptions, LIST_SYMBOLIC)) {
                     if (!aPattern || fnmatch(aPattern, node->fts_name, FNM_PERIOD) == 0) {
                         result++;
-                        if (aProcessor) aProcessor(result, node);
+                        if (aProcessor) aProcessor(result, node, aPtr);
                     }
                 }
                 break;
@@ -328,7 +328,7 @@ int WalkDir(const char* aDir, const char* aPattern, int aOptions, int(*aProcesso
                      */
                     if (!aPattern || fnmatch(aPattern, node->fts_name, FNM_PERIOD) == 0) {
                         result++;
-                        if (aProcessor) aProcessor(result, node);
+                        if (aProcessor) aProcessor(result, node, aPtr);
                     }
                 }
 
@@ -370,7 +370,7 @@ int WalkDir(const char* aDir, const char* aPattern, int aOptions, int(*aProcesso
 //retrun <0 means failed errno.
 int CountDir(const char* aDir, const char* aPattern, int aOptions)
 {
-    return WalkDir(aDir, aPattern, aOptions, NULL);
+    return WalkDir(aDir, aPattern, aOptions, NULL, NULL);
 }
 
 //List files or directories in the aDir.
@@ -382,15 +382,17 @@ int CountDir(const char* aDir, const char* aPattern, int aOptions)
 //  * LIST_SYMBOLIC(4Bit): list symbolic links in the aDir
 //  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
 //retrun 0 means failed, or return the list of the matched directories(the value is sds type).
+
+static int process_dir(int aCount, const FTSENT *aNode, void *aPtr){
+        sds s = sdsnew(aNode->fts_path);
+        listAddNodeTail((list*)aPtr, s);
+}
+
 list* ListDir(const char* aDir, const char* aPattern, int aOptions)
 {
     list* result = sdslistCreate();
     sds s;
-    int process_dir(int aCount, const FTSENT *aNode){
-        s = sdsnew(aNode->fts_path);
-        listAddNodeTail(result, s);
-     }
-    int vErrno = WalkDir(aDir, aPattern, aOptions, process_dir);
+    int vErrno = WalkDir(aDir, aPattern, aOptions, process_dir, result);
 
 
     if (vErrno < 0) {

@@ -72,7 +72,7 @@ int DeleteDir(const char* aDir);
 //  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
 //aProcessor: the processor for matched item
 // retrun matched count if successful, or, means errno(<0).
-int WalkDir(const char* aDir, const char* aPattern, int aOptions, int(*aProcessor)(int aCount, const FTSENT *aNode));
+int WalkDir(const char* aDir, const char* aPattern, int aOptions, int(*aProcessor)(int aCount,const FTSENT *aNode, void *aPtr), void *aPtr);
 //Count files or directories in the aDir.
 //aOptions: the list dir options set:
 //  * LIST_DESCENDING(0Bit): the list dir order
