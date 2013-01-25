@@ -266,8 +266,12 @@ static list* sdslistCreate()
 //  * LIST_SYMBOLIC(4Bit): list symbolic links in the aDir
 //  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
 //aProcessor: the processor for matched item
+//  if Processor return
+//    0 : continue walkthrough directory.
+//    -1: means stop walkthrough directory.
+//     1: Skip this item.
 // retrun matched count if successful, or, means errno(<0).
-int WalkDir(const char* aDir, const char* aPattern, int aOptions, int(*aProcessor)(int aCount,const FTSENT *aNode, void *aPtr), void *aPtr)
+int WalkDir(const char* aDir, const char* aPattern, int aOptions, WalkDirHandler aProcessor, void *aPtr)
 {
     int result = 0;
     int vErrno = 0;
@@ -284,14 +288,18 @@ int WalkDir(const char* aDir, const char* aPattern, int aOptions, int(*aProcesso
     FTS *tree = fts_open((char**)&vPaths, vFTSOptions, vComparer);
     if (tree) {
         FTSENT *node;
-        while ((node = fts_read(tree)) && !vErrno) {
+        int vStopped = 0;
+        while ((node = fts_read(tree)) && !vErrno && (vStopped != WALK_ITEM_STOP)) {
             switch (node->fts_info) {
             case FTS_DP: //A directory being visited in post-order.
                 if (BIT_CHECK(aOptions, LIST_DIR)) {
                     //printf("dir try: %s\n", node->fts_path);
                     if (!aPattern || fnmatch(aPattern, node->fts_name, FNM_PERIOD) == 0) {
+                        if (aProcessor) {
+                            vStopped = aProcessor(result, node, aPtr);
+                            if (vStopped == WALK_ITEM_SKIP) continue;
+                        }
                         result++;
-                        if (aProcessor) aProcessor(result, node, aPtr);
                         //printf("Dir: %s\n",s);
                     }
                 }
@@ -305,16 +313,22 @@ int WalkDir(const char* aDir, const char* aPattern, int aOptions, int(*aProcesso
             case FTS_SL: //A symbolic link.
                 if (BIT_CHECK(aOptions, LIST_SYMBOLIC)) {
                     if (!aPattern || fnmatch(aPattern, node->fts_name, FNM_PERIOD) == 0) {
+                        if (aProcessor) {
+                            vStopped = aProcessor(result, node, aPtr);
+                            if (vStopped == WALK_ITEM_SKIP) continue;
+                        }
                         result++;
-                        if (aProcessor) aProcessor(result, node, aPtr);
                     }
                 }
                 break;
             case FTS_SLNONE: //A symbolic link with a non-existent target.
                 if (BIT_CHECK(aOptions, LIST_SYMBOLIC)) {
                     if (!aPattern || fnmatch(aPattern, node->fts_name, FNM_PERIOD) == 0) {
+                        if (aProcessor) {
+                            vStopped = aProcessor(result, node, aPtr);
+                            if (vStopped == WALK_ITEM_SKIP) continue;
+                        }
                         result++;
-                        if (aProcessor) aProcessor(result, node, aPtr);
                     }
                 }
                 break;
@@ -327,8 +341,11 @@ int WalkDir(const char* aDir, const char* aPattern, int aOptions, int(*aProcesso
                      * match ".invisible.c".
                      */
                     if (!aPattern || fnmatch(aPattern, node->fts_name, FNM_PERIOD) == 0) {
+                        if (aProcessor) {
+                            vStopped = aProcessor(result, node, aPtr);
+                            if (vStopped == WALK_ITEM_SKIP) continue;
+                        }
                         result++;
-                        if (aProcessor) aProcessor(result, node, aPtr);
                     }
                 }
 
@@ -383,15 +400,16 @@ int CountDir(const char* aDir, const char* aPattern, int aOptions)
 //  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
 //retrun 0 means failed, or return the list of the matched directories(the value is sds type).
 
-static int process_dir(int aCount, const FTSENT *aNode, void *aPtr){
+static int process_matched_dir(int aCount, const FTSENT *aNode, void *aPtr){
         sds s = sdsnew(aNode->fts_path);
         listAddNodeTail((list*)aPtr, s);
+        return WALK_ITEM_OK;
 }
 
 list* ListDir(const char* aDir, const char* aPattern, int aOptions)
 {
     list* result = sdslistCreate();
-    int vErrno = WalkDir(aDir, aPattern, aOptions, process_dir, result);
+    int vErrno = WalkDir(aDir, aPattern, aOptions, process_matched_dir, result);
 
 
     if (vErrno < 0) {
@@ -534,7 +552,7 @@ static int UrlDecode(char *vStr, int len)
 #include "testhelp.h"
 
 //Note: sds.* zmalloc.* config.h come from redis src
-//gcc -fnested-functions --std=c99 -I. -Ideps  -o test -DISDK_UTILS_TEST_MAIN isdk_utils.c deps/sds.c deps/zmalloc.c deps/adlist.c
+//gcc --std=c99 -I. -Ideps  -o test -DISDK_UTILS_TEST_MAIN isdk_utils.c deps/sds.c deps/zmalloc.c deps/adlist.c
 void test_list(list* result, list* expected) {
     if (expected) {
         test_cond("List SHOULD NOT NULL", result);

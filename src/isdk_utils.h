@@ -26,6 +26,8 @@
  #include <stdbool.h>
  #include <stdio.h>
  #include <stdarg.h>
+ #include <fts.h>            /* Traverse a file hierarchy. */
+
  #include "sysstat.h"    /* mode_t for Windows - <sys/types.h> for POSIX */
  /*use the redis C dynamic strings library: sds.h*/
  #include "sds.h"
@@ -43,12 +45,17 @@
  #define LIST_SYMBOLIC              4  //list symbolic links in the aDir
  #define LIST_SYMBOLIC_NONE         5  //list symbolic links with a non-existent target in the aDir
 
+ #define WALK_ITEM_OK               0
+ #define WALK_ITEM_SKIP             1
+ #define WALK_ITEM_STOP            -1
+
  #ifdef __cplusplus
  extern "C"
  {
  #endif
 
 typedef struct stat Stat;
+typedef int(*WalkDirHandler)(int aCount,const FTSENT *aNode, void *aPtr);
 
 /* Open named file without truncate or create safely */
 static int open_or_create_file(const char *file, int flags, mode_t perms);
@@ -72,7 +79,7 @@ int DeleteDir(const char* aDir);
 //  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
 //aProcessor: the processor for matched item
 // retrun matched count if successful, or, means errno(<0).
-int WalkDir(const char* aDir, const char* aPattern, int aOptions, int(*aProcessor)(int aCount,const FTSENT *aNode, void *aPtr), void *aPtr);
+int WalkDir(const char* aDir, const char* aPattern, int aOptions, WalkDirHandler aProcessor, void *aPtr);
 //Count files or directories in the aDir.
 //aOptions: the list dir options set:
 //  * LIST_DESCENDING(0Bit): the list dir order
