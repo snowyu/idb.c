@@ -30,6 +30,8 @@
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
+#include "kbit.h"
+
 #define HAVE_UNISTD_H  1
 
 /* a=target variable, b=bit number to act upon 0-n */
