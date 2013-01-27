@@ -47,6 +47,11 @@
 //the complex types:
 #define IDB_DICT_TYPE       0x20
 #define IDB_LIST_TYPE       0x21
+#define IDB_STR_TYPE_NAME   "string"
+#define IDB_NUM_TYPE_NAME   "number"
+#define IDB_DICT_TYPE_NAME  "dict"
+#define IDB_LIST_TYPE_NAME  "list"
+
 
  #ifdef __cplusplus
  extern "C"
