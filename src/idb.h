@@ -32,25 +32,71 @@
  #include "isdk_xattr.h"
  #include "isdk_utils.h"
 
+ #include "config.h"
  #include "idb_helpers.h"
 
+#ifdef __GNUC__
+    #define _ANONYMOUS_STRUCT __extension__
+    #define __C89_NAMELESS __extension__
+    #define __C89_NAMELESSSTRUCTNAME
+#endif
+
+//the simple types:
+#define IDB_STR_TYPE        0x00
+#define IDB_NUM_TYPE        0x01
+//the complex types:
+#define IDB_DICT_TYPE       0x20
+#define IDB_LIST_TYPE       0x21
 
  #ifdef __cplusplus
  extern "C"
   {
  #endif
 
-struct __iDB {
-  char *path;                   //the iDB database path.
-  bool opened;                  //whether the internal database is opened
+struct __iBaseItem {
+  char *path;                   //the iDB item path.
   bool loadOnDemand;
   bool storeInXattr;            //enabled the xattr storage.
   bool storeInFile;             //enabled the file storage.
   bool raiseOnTypeMismatch;     //raise error if Type Mismatch when true
 };
+typedef struct __iBaseItem iBaseItem;
 
+struct __iItem {
+  //inheritance from iBaseItem:
+  #ifdef _ANONYMOUS_STRUCT
+    struct __iBaseItem;  //the anonymous-structs, only avaiable on C11: gcc -fms-extensions to enable it.
+  #else
+    //--------------------------------------------------------------------
+    char *path;                   //the iDB item path.
+    bool loadOnDemand;
+    bool storeInXattr;            //enabled the xattr storage.
+    bool storeInFile;             //enabled the file storage.
+    bool raiseOnTypeMismatch;     //raise error if Type Mismatch when true
+    //--------------------------------------------------------------------
+  #endif
+    int  type;             //the Item type.
+    char *value;            //the Item value.
+};
+typedef struct __iItem iItem;
+
+
+struct __iDB {
+    //inheritance from iBaseItem:
+  #ifdef _ANONYMOUS_STRUCT
+    struct __iBaseItem;  //the anonymous-structs, only avaiable on C11: gcc -fms-extensions to enable it.
+  #else
+    //--------------------------------------------------------------------
+    char *path;                   //the iDB item path.
+    bool loadOnDemand;
+    bool storeInXattr;            //enabled the xattr storage.
+    bool storeInFile;             //enabled the file storage.
+    bool raiseOnTypeMismatch;     //raise error if Type Mismatch when true
+    //--------------------------------------------------------------------
+  #endif
+    bool opened;                  //whether the internal database is opened
+};
 typedef struct __iDB iDB;
-
 
 //create a database object.
 void* iDB_New(void);
