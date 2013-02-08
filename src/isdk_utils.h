@@ -28,10 +28,12 @@
  #include <stdarg.h>
  #include <fts.h>            /* Traverse a file hierarchy. */
 
+ #include "zmalloc.h"
  #include "sysstat.h"    /* mode_t for Windows - <sys/types.h> for POSIX */
  /*use the redis C dynamic strings library: sds.h*/
  #include "sds.h"
- #include "adlist.h"
+ #include "darray.h"
+ //#include "adlist.h"  //the double-link list
  #include "filename.h"
 
  #define O_RW_RW_R__PERMS    (S_IWUSR|S_IRUSR|S_IWGRP|S_IRGRP|S_IROTH)
@@ -53,6 +55,33 @@
  extern "C"
  {
  #endif
+
+/* 
+ *     dStringArray a = dStringArray_new();
+ *     dStringArray_free(a);
+ *
+ *
+ *
+ * */
+typedef darray(sds)           dStringArray;
+static void _darray_sds_free_handler(void* aPtr)
+{
+    if (aPtr) {
+        sdsfree(aPtr);
+        aPtr = NULL;
+    }
+}
+#define dStringArray_init(arr) do {(arr).item=0; (arr).size=0; (arr).alloc=0;(arr).onFree=_darray_sds_free_handler;} while(0)
+static inline dStringArray* dStringArray_new()
+{
+    dStringArray* result = zmalloc(sizeof(dStringArray));
+    dStringArray_init(*result);
+    return result;
+}
+static inline void dStringArray_free(dStringArray* arr) {
+    darray_free_all(*arr);
+    zfree(arr);
+}
 
 typedef struct stat Stat;
 typedef int(*WalkDirHandler)(int aCount,const FTSENT *aNode, void *aPtr);
@@ -99,7 +128,7 @@ int CountDir(const char* aDir, const char* aPattern, int aOptions);
 //  * LIST_SYMBOLIC(4Bit): list symbolic links in the aDir
 //  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
 //retrun 0 means failed, or return the list of the matched directories(the value is sds type).
-list* ListDir(const char* aDir, const char* aPattern, int aOptions);
+dStringArray* ListDir(const char* aDir, const char* aPattern, int aOptions);
 
 //test the filename whether is a directory
 //return 0 = a file, 1 = a Dir, 2 = a symbolic dir, -999 = a symbolic file, -2 = Not Exists(ENOENT), < 0 others means error code.

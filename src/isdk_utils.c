@@ -230,7 +230,7 @@ static int _dir_descending_compare(const FTSENT **a, const FTSENT **b)
 {
     return -strcmp((*a)->fts_name, (*b)->fts_name);;
 }
-
+/*
 static void _sdslist_item_free(void* ptr)
 {
     if (ptr) sdsfree(ptr);
@@ -256,6 +256,7 @@ static list* sdslistCreate()
     listSetMatchMethod(result, _sdslist_item_match);
     return result;
 }
+*/
 
 //Walk through files or directories in the aDir.
 //aOptions: the list dir options set:
@@ -402,18 +403,19 @@ int CountDir(const char* aDir, const char* aPattern, int aOptions)
 
 static int process_matched_dir(int aCount, const FTSENT *aNode, void *aPtr){
         sds s = sdsnew(aNode->fts_path);
-        listAddNodeTail((list*)aPtr, s);
+        //listAddNodeTail((list*)aPtr, s);
+        darray_append(*(dStringArray*)aPtr, s);
         return WALK_ITEM_OK;
 }
 
-list* ListDir(const char* aDir, const char* aPattern, int aOptions)
+dStringArray* ListDir(const char* aDir, const char* aPattern, int aOptions)
 {
-    list* result = sdslistCreate();
+    dStringArray* result = dStringArray_new();
     int vErrno = WalkDir(aDir, aPattern, aOptions, process_matched_dir, result);
 
 
     if (vErrno < 0) {
-        listRelease(result);
+        dStringArray_free(result);
         result = NULL;
     }
 
@@ -552,36 +554,23 @@ static int UrlDecode(char *vStr, int len)
 #include "testhelp.h"
 
 //Note: sds.* zmalloc.* config.h come from redis src
-//gcc --std=c99 -I. -Ideps  -o test -DISDK_UTILS_TEST_MAIN isdk_utils.c deps/sds.c deps/zmalloc.c deps/adlist.c
-void test_list(list* result, list* expected) {
-    if (expected) {
+//gcc --std=c99 -I. -Ideps  -o test -DISDK_UTILS_TEST_MAIN isdk_utils.c deps/sds.c deps/zmalloc.c
+typedef darray(const char*) dCStrArray;
+void test_list(dStringArray* result, dCStrArray expected) {
         test_cond("List SHOULD NOT NULL", result);
-        test_cond("List Length Test", listLength(result)==listLength(expected));
-        if (listLength(result)==listLength(expected)) {
-            listIter* vIter = listGetIterator(result, AL_START_HEAD);
-            listIter* vIter1 = listGetIterator(expected, AL_START_HEAD);
-            if (vIter1) {
-                test_cond("List iterator SHOULD NOT NULL", vIter);
-                listNode* node = listNext(vIter);
-                listNode* node1 = listNext(vIter1);
+        test_cond("List Length Test", darray_size(*result)==darray_size(expected));
+        if (darray_size(*result)==darray_size(expected)) {
                 sds s;
                 char* s1 = "LIST Item:";
-                while (node1) {
-                    test_cond("LIST NODE should not NULL", node);
+            for (int i=0; i< darray_size(*result); i++) {
                     s = sdsnew(s1);
-                    s = sdscatsds(s, (sds)listNodeValue(node1));
-                    test_cond(s, strcmp(listNodeValue(node), listNodeValue(node1))==0);
+                    s = sdscat(s, darray_item(*result, i));
+                    test_cond(s, strcmp(darray_item(*result, i), darray_item(expected, i))==0);
                     sdsfree(s);
-                    node = listNext(vIter);
-                    node1 = listNext(vIter1);
-                }
-                listReleaseIterator(vIter1);
-                listReleaseIterator(vIter);
             }
         } else {
-            printf("expected Length is %lu, but it is %lu in fact.\n", listLength(expected), listLength(result));
+            printf("expected Length is %lu, but it is %lu in fact.\n", darray_size(expected), darray_size(*result));
         }
-    }
 }
 
 int main(void) {
@@ -599,15 +588,14 @@ int main(void) {
         symlink("brokenlink", "testlistdir/nosuchfile");
         puts("ListDir('1*', 1 << LIST_DIR)");
         puts("----------------------------");
-        list* vList = ListDir("testlistdir", "1*", 1 << LIST_DIR);
+        dStringArray* vList = ListDir("testlistdir", "1*", 1 << LIST_DIR);
         test_cond("CountDir", 1==CountDir("testlistdir", "1*", 1 << LIST_DIR));
-        list* vExpectedList = sdslistCreate();
+        dCStrArray vExpectedList = darray_new();
         if (vList) {
-            sds vItem = sdsnew("testlistdir/1234");
-            listAddNodeTail(vExpectedList, vItem);
+            darray_appends_t(vExpectedList, const char*, "testlistdir/1234");
             test_list(vList, vExpectedList);
-            listRelease(vList);
-            listRelease(vExpectedList);
+            dStringArray_free(vList);
+            darray_free(vExpectedList);
         } else {
             printf("failed:%d\n", errno);
         }
@@ -616,13 +604,12 @@ int main(void) {
         puts("----------------------------");
         vList = ListDir("testlistdir", "1*", 1 << LIST_FILE);
         test_cond("CountDir", 1==CountDir("testlistdir", "1*", 1 << LIST_FILE));
-        vExpectedList = sdslistCreate();
+        darray_init(vExpectedList);
         if (vList) {
-            sds vItem = sdsnew("testlistdir/12testfile.inc");
-            listAddNodeTail(vExpectedList, vItem);
+            darray_appends_t(vExpectedList, const char*, "testlistdir/12testfile.inc");
             test_list(vList, vExpectedList);
-            listRelease(vList);
-            listRelease(vExpectedList);
+            dStringArray_free(vList);
+            darray_free(vExpectedList);
         } else {
             printf("failed:%d\n", errno);
         }
@@ -631,16 +618,12 @@ int main(void) {
         puts("----------------------------");
         vList = ListDir("testlistdir", "1*", ((1 << LIST_DIR) | (1 << LIST_FILE)));
         test_cond("CountDir", 2==CountDir("testlistdir", "1*", ((1 << LIST_DIR) | (1 << LIST_FILE))));
-        vExpectedList = sdslistCreate();
+        darray_init(vExpectedList);
         if (vList) {
-            sds vItem;
-            vItem = sdsnew("testlistdir/1234");
-            listAddNodeTail(vExpectedList, vItem);
-            vItem = sdsnew("testlistdir/12testfile.inc");
-            listAddNodeTail(vExpectedList, vItem);
+            darray_appends_t(vExpectedList, const char*, "testlistdir/1234", "testlistdir/12testfile.inc");
             test_list(vList, vExpectedList);
-            listRelease(vList);
-            listRelease(vExpectedList);
+            dStringArray_free(vList);
+            darray_free(vExpectedList);
         } else {
             printf("failed:%d\n", errno);
         }
@@ -649,16 +632,12 @@ int main(void) {
         puts("----------------------------");
         vList = ListDir("testlistdir", "b*", 1 << LIST_DIR);
         test_cond("CountDir", 2==CountDir("testlistdir", "b*", 1 << LIST_DIR));
-         vExpectedList = sdslistCreate();
+        darray_init(vExpectedList);
         if (vList) {
-            sds vItem;
-            vItem = sdsnew("testlistdir/better");
-            listAddNodeTail(vExpectedList, vItem);
-            vItem = sdsnew("testlistdir/betterlink");
-            listAddNodeTail(vExpectedList, vItem);
+            darray_appends_t(vExpectedList, const char*, "testlistdir/better", "testlistdir/betterlink");
             test_list(vList, vExpectedList);
-            listRelease(vList);
-            listRelease(vExpectedList);
+            dStringArray_free(vList);
+            darray_free(vExpectedList);
         } else {
             printf("failed:%d\n", errno);
         }
@@ -666,14 +645,12 @@ int main(void) {
         puts("ListDir('b*', (1 << LIST_DIR)|(1<<LIST_PHYSICAL)");
         puts("----------------------------");
         vList = ListDir("testlistdir", "b*", (1 << LIST_DIR)|(1<<LIST_PHYSICAL));
-        vExpectedList = sdslistCreate();
+        darray_init(vExpectedList);
         if (vList) {
-            sds vItem;
-            vItem = sdsnew("testlistdir/better");
-            listAddNodeTail(vExpectedList, vItem);
+            darray_appends_t(vExpectedList, const char*, "testlistdir/better");
             test_list(vList, vExpectedList);
-            listRelease(vList);
-            listRelease(vExpectedList);
+            dStringArray_free(vList);
+            darray_free(vExpectedList);
         } else {
             printf("failed:%d\n", errno);
         }
