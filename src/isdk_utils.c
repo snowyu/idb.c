@@ -45,8 +45,11 @@
 #include <fts.h>            /* Traverse a file hierarchy. */
 #include <fcntl.h>
 #include <fnmatch.h>
+#include <dirent.h>
 #include "isdk_utils.h"
 
+
+#define FNM_MATCHED(aPattern, aDir) (!aPattern || fnmatch(aPattern, aDir, FNM_PERIOD) == 0)
 
 //Author: J Leffler
 static int do_mkdir(const char* path, mode_t mode)
@@ -121,9 +124,9 @@ int IsDirectory(const char* aFileName)
       }
       bool vIsDir = S_ISDIR(st.st_mode);
       if (vIsLink) {
-          err = (vIsDir ? 2 : -999);
+          err = (vIsDir ? PATH_IS_SYM_DIR : PATH_IS_SYM_FILE);
       } else {
-          err = (vIsDir ? 1 : 0);
+          err = (vIsDir ? PATH_IS_DIR : PATH_IS_FILE);
       }
     }
     return err;
@@ -272,7 +275,7 @@ static list* sdslistCreate()
 //    -1: means stop walkthrough directory.
 //     1: Skip this item.
 // retrun matched count if successful, or, means errno(<0).
-int WalkDir(const char* aDir, const char* aPattern, int aOptions, WalkDirHandler aProcessor, void *aPtr)
+int FTSWalkDir(const char* aDir, const char* aPattern, int aOptions, FTSWalkDirHandler aProcessor, void *aPtr)
 {
     int result = 0;
     int vErrno = 0;
@@ -295,7 +298,7 @@ int WalkDir(const char* aDir, const char* aPattern, int aOptions, WalkDirHandler
             case FTS_DP: //A directory being visited in post-order.
                 if (BIT_CHECK(aOptions, LIST_DIR)) {
                     //printf("dir try: %s\n", node->fts_path);
-                    if (!aPattern || fnmatch(aPattern, node->fts_name, FNM_PERIOD) == 0) {
+                    if (!aPattern || FNM_MATCHED(aPattern, node->fts_name)) {
                         if (aProcessor) {
                             vStopped = aProcessor(result, node, aPtr);
                             if (vStopped == WALK_ITEM_SKIP) continue;
@@ -313,7 +316,7 @@ int WalkDir(const char* aDir, const char* aPattern, int aOptions, WalkDirHandler
                 break;
             case FTS_SL: //A symbolic link.
                 if (BIT_CHECK(aOptions, LIST_SYMBOLIC)) {
-                    if (!aPattern || fnmatch(aPattern, node->fts_name, FNM_PERIOD) == 0) {
+                    if (!aPattern || FNM_MATCHED(aPattern, node->fts_name)) {
                         if (aProcessor) {
                             vStopped = aProcessor(result, node, aPtr);
                             if (vStopped == WALK_ITEM_SKIP) continue;
@@ -323,8 +326,8 @@ int WalkDir(const char* aDir, const char* aPattern, int aOptions, WalkDirHandler
                 }
                 break;
             case FTS_SLNONE: //A symbolic link with a non-existent target.
-                if (BIT_CHECK(aOptions, LIST_SYMBOLIC)) {
-                    if (!aPattern || fnmatch(aPattern, node->fts_name, FNM_PERIOD) == 0) {
+                if (BIT_CHECK(aOptions, LIST_SYMBOLIC_NONE)) {
+                    if (!aPattern || FNM_MATCHED(aPattern, node->fts_name)) {
                         if (aProcessor) {
                             vStopped = aProcessor(result, node, aPtr);
                             if (vStopped == WALK_ITEM_SKIP) continue;
@@ -341,7 +344,7 @@ int WalkDir(const char* aDir, const char* aPattern, int aOptions, WalkDirHandler
                      * path. This check uses FNM_PERIOD, so "*.c" will not
                      * match ".invisible.c".
                      */
-                    if (!aPattern || fnmatch(aPattern, node->fts_name, FNM_PERIOD) == 0) {
+                    if (!aPattern || FNM_MATCHED(aPattern, node->fts_name)) {
                         if (aProcessor) {
                             vStopped = aProcessor(result, node, aPtr);
                             if (vStopped == WALK_ITEM_SKIP) continue;
@@ -386,9 +389,9 @@ int WalkDir(const char* aDir, const char* aPattern, int aOptions, WalkDirHandler
 //  * LIST_SYMBOLIC(4Bit): list symbolic links in the aDir
 //  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
 //retrun <0 means failed errno.
-int CountDir(const char* aDir, const char* aPattern, int aOptions)
+int FTSCountDir(const char* aDir, const char* aPattern, int aOptions)
 {
-    return WalkDir(aDir, aPattern, aOptions, NULL, NULL);
+    return FTSWalkDir(aDir, aPattern, aOptions, NULL, NULL);
 }
 
 //List files or directories in the aDir.
@@ -408,10 +411,10 @@ static int process_matched_dir(int aCount, const FTSENT *aNode, void *aPtr){
         return WALK_ITEM_OK;
 }
 
-dStringArray* ListDir(const char* aDir, const char* aPattern, int aOptions)
+dStringArray* FTSListDir(const char* aDir, const char* aPattern, int aOptions)
 {
     dStringArray* result = dStringArray_new();
-    int vErrno = WalkDir(aDir, aPattern, aOptions, process_matched_dir, result);
+    int vErrno = FTSWalkDir(aDir, aPattern, aOptions, process_matched_dir, result);
 
 
     if (vErrno < 0) {
@@ -419,6 +422,123 @@ dStringArray* ListDir(const char* aDir, const char* aPattern, int aOptions)
         result = NULL;
     }
 
+    return result;
+}
+
+size_t CountDir(const char* aDir, const char* aPattern, int aOptions)
+{
+    DIR *vDirHandler;
+    struct dirent *vItem;
+    vDirHandler = opendir(aDir);
+    size_t vTotal = 0;
+    if (vDirHandler) {
+        while (vItem = readdir(vDirHandler)) {
+            if (vItem->d_name[0] == '.') continue;
+            switch (vItem->d_type) {
+                case DT_DIR:
+                    if (BIT_CHECK(aOptions, LIST_DIR)) {
+                        if FNM_MATCHED(aPattern, vItem->d_name) {
+                            vTotal++;
+                        }
+                    }
+                    break;
+                case DT_LNK:
+                    if (BIT_CHECK(aOptions, LIST_SYMBOLIC) || BIT_CHECK(aOptions, LIST_SYMBOLIC_NONE)) {
+                        struct stat st;
+                        sds vFileName = sdsnew(aDir);
+                        vFileName = sdsJoinPathLen(vFileName, vItem->d_name, vItem->d_namlen);
+                        int vErrno = stat(vFileName, &st);
+                        if (vErrno != 0) vErrno = errno;
+                        if (vErrno == 0 && BIT_CHECK(aOptions, LIST_SYMBOLIC)) {
+                            if (S_ISDIR(st.st_mode)) {
+                                if (BIT_CHECK(aOptions, LIST_DIR) && FNM_MATCHED(aPattern, vItem->d_name))
+                                    vTotal++;
+                            }
+                            else if (BIT_CHECK(aOptions, LIST_FILE) && FNM_MATCHED(aPattern, vItem->d_name)) {
+                                vTotal++;
+                            }
+                        } else if (vErrno == ENOENT && BIT_CHECK(aOptions, LIST_SYMBOLIC_NONE) && FNM_MATCHED(aPattern, vItem->d_name))
+                            vTotal++;
+                        sdsfree(vFileName);
+                    }
+                    break;
+                case DT_REG: //It's a file
+                    if (BIT_CHECK(aOptions, LIST_FILE)) {
+                        if FNM_MATCHED(aPattern, vItem->d_name) vTotal++;
+                    }
+                    break;
+            } //switch-end
+        } //while-end
+        closedir(vDirHandler);
+    }
+    return vTotal;
+}
+
+static inline bool _add2listdir(dStringArray* result, const char* aPattern, struct dirent *vItem)
+{
+    if FNM_MATCHED(aPattern, vItem->d_name) {
+        sds s = sdsnewlen(vItem->d_name, vItem->d_namlen);
+        darray_append(*result, s);
+        return true;
+    }
+    else
+        return false;
+}
+//return all if aCount = 0
+dStringArray* ListDir(const char* aDir, const char* aPattern, int aOptions, size_t aSkipCount, size_t aCount)
+{
+    DIR *vDirHandler;
+    struct dirent *vItem;
+    dStringArray* result = NULL;
+    vDirHandler = opendir(aDir);
+    size_t vTotal = 0;
+    if (vDirHandler) {
+        result = dStringArray_new();
+        while (vItem = readdir(vDirHandler)) {
+            if (aSkipCount != 0) {
+                aSkipCount--;
+                continue;
+            }
+            if (vItem->d_name[0] == '.') continue;
+            //printf("%s type=%x\n", vItem->d_name, vItem->d_type);
+            switch (vItem->d_type) {
+                case DT_DIR:
+                    if (BIT_CHECK(aOptions, LIST_DIR)) {
+                        if (_add2listdir(result, aPattern, vItem)) vTotal++;
+                    }
+                    break;
+                case DT_LNK:
+                    if (BIT_CHECK(aOptions, LIST_SYMBOLIC) || BIT_CHECK(aOptions, LIST_SYMBOLIC_NONE)) {
+                        struct stat st;
+                        sds vFileName = sdsnew(aDir);
+                        vFileName = sdsJoinPathLen(vFileName, vItem->d_name, vItem->d_namlen);
+                        int vErrno = stat(vFileName, &st);
+                        if (vErrno != 0) vErrno = errno;
+
+                        if (vErrno == 0 && BIT_CHECK(aOptions, LIST_SYMBOLIC)) {
+                            if (S_ISDIR(st.st_mode)) {
+                                if (BIT_CHECK(aOptions, LIST_DIR) && _add2listdir(result, aPattern, vItem))
+                                    vTotal++;
+                            }
+                            else if (BIT_CHECK(aOptions, LIST_FILE) && _add2listdir(result, aPattern, vItem)) {
+                                vTotal++;
+                            }
+                        } else if (vErrno == ENOENT && BIT_CHECK(aOptions, LIST_SYMBOLIC_NONE) && _add2listdir(result, aPattern, vItem))
+                            vTotal++;
+
+                        sdsfree(vFileName);
+                    }
+                    break;
+                case DT_REG: //It's a file
+                    if (BIT_CHECK(aOptions, LIST_FILE)) {
+                        if (_add2listdir(result, aPattern, vItem)) vTotal++;
+                    }
+                    break;
+            } //switch-end
+            if (aCount && vTotal >= aCount) break;
+        } //while-end
+        closedir(vDirHandler);
+    }
     return result;
 }
 
@@ -575,24 +695,40 @@ void test_list(dStringArray* result, dCStrArray expected) {
 
 int main(void) {
     {
-        DeleteDir("testlistdir");
-        ForceDirectories("testlistdir/good", O_RWXRWXR_XPERMS);
-        ForceDirectories("testlistdir/better", O_RWXRWXR_XPERMS);
-        ForceDirectories("testlistdir/1234", O_RWXRWXR_XPERMS);
-        symlink("better", "testlistdir/betterlink");
-        int fd1 = open_or_create_file("testlistdir/atestfile", 0, O_RW_RW_R__PERMS);
+        DeleteDir("testFTSListDir");
+        ForceDirectories("testFTSListDir/good", O_RWXRWXR_XPERMS);
+        ForceDirectories("testFTSListDir/better", O_RWXRWXR_XPERMS);
+        ForceDirectories("testFTSListDir/1234", O_RWXRWXR_XPERMS);
+        symlink("better", "testFTSListDir/betterlink");
+        int fd1 = open_or_create_file("testFTSListDir/atestfile", 0, O_RW_RW_R__PERMS);
         close(fd1);
-        fd1 = open_or_create_file("testlistdir/12testfile.inc", 0, O_RW_RW_R__PERMS);
+        fd1 = open_or_create_file("testFTSListDir/12testfile.inc", 0, O_RW_RW_R__PERMS);
         close(fd1);
-        symlink("atestfile", "testlistdir/afilelink");
-        symlink("brokenlink", "testlistdir/nosuchfile");
+        symlink("atestfile", "testFTSListDir/afilelink");
+        symlink("brokenlink", "testFTSListDir/nosuchfile");
+        test_cond("IsDirectory('testFTSListDir/good')==PATH_IS_DIR", IsDirectory("testFTSListDir/good") == PATH_IS_DIR);
+        test_cond("IsDirectory('testFTSListDir/betterlink')==PATH_IS_SYM_DIR", IsDirectory("testFTSListDir/betterlink") == PATH_IS_SYM_DIR);
+        test_cond("IsDirectory('testFTSListDir/afilelink')==PATH_IS_SYM_FILE", IsDirectory("testFTSListDir/afilelink") == PATH_IS_SYM_FILE);
+        test_cond("IsDirectory('testFTSListDir/atestfile')==PATH_IS_FILE", IsDirectory("testFTSListDir/atestfile") == PATH_IS_FILE);
+        test_cond("IsDirectory('testFTSListDir/estfe')==PATH_IS_NOT_EXISTS", IsDirectory("testFTSListDir/estfe") == PATH_IS_NOT_EXISTS);
         puts("ListDir('1*', 1 << LIST_DIR)");
         puts("----------------------------");
-        dStringArray* vList = ListDir("testlistdir", "1*", 1 << LIST_DIR);
-        test_cond("CountDir", 1==CountDir("testlistdir", "1*", 1 << LIST_DIR));
+        dStringArray* vList = FTSListDir("testFTSListDir", "1*", 1 << LIST_DIR);
+        test_cond("FTSCountDir", 1==FTSCountDir("testFTSListDir", "1*", 1 << LIST_DIR));
         dCStrArray vExpectedList = darray_new();
         if (vList) {
-            darray_appends_t(vExpectedList, const char*, "testlistdir/1234");
+            darray_appends_t(vExpectedList, const char*, "testFTSListDir/1234");
+            test_list(vList, vExpectedList);
+            dStringArray_free(vList);
+            darray_free(vExpectedList);
+        } else {
+            printf("failed:%d\n", errno);
+        }
+        vList = ListDir("testFTSListDir", "1*", 1 << LIST_DIR, 0, 0);
+        test_cond("CountDir('1*', LIST_DIR)", 1==CountDir("testFTSListDir", "1*", 1 << LIST_DIR));
+        darray_init(vExpectedList);
+        if (vList) {
+            darray_appends_t(vExpectedList, const char*, "1234");
             test_list(vList, vExpectedList);
             dStringArray_free(vList);
             darray_free(vExpectedList);
@@ -600,13 +736,24 @@ int main(void) {
             printf("failed:%d\n", errno);
         }
         puts("----------------------------");
-        puts("ListDir('1*', 1 << LIST_FILE)");
+        puts("FTSListDir('1*', 1 << LIST_FILE)");
         puts("----------------------------");
-        vList = ListDir("testlistdir", "1*", 1 << LIST_FILE);
-        test_cond("CountDir", 1==CountDir("testlistdir", "1*", 1 << LIST_FILE));
+        vList = FTSListDir("testFTSListDir", "1*", 1 << LIST_FILE);
+        test_cond("FTSCountDir", 1==FTSCountDir("testFTSListDir", "1*", 1 << LIST_FILE));
         darray_init(vExpectedList);
         if (vList) {
-            darray_appends_t(vExpectedList, const char*, "testlistdir/12testfile.inc");
+            darray_appends_t(vExpectedList, const char*, "testFTSListDir/12testfile.inc");
+            test_list(vList, vExpectedList);
+            dStringArray_free(vList);
+            darray_free(vExpectedList);
+        } else {
+            printf("failed:%d\n", errno);
+        }
+        vList = ListDir("testFTSListDir", "1*", 1 << LIST_FILE, 0, 0);
+        test_cond("CountDir('1*', LIST_FILE)", 1==CountDir("testFTSListDir", "1*", 1 << LIST_FILE));
+        darray_init(vExpectedList);
+        if (vList) {
+            darray_appends_t(vExpectedList, const char*, "12testfile.inc");
             test_list(vList, vExpectedList);
             dStringArray_free(vList);
             darray_free(vExpectedList);
@@ -614,13 +761,24 @@ int main(void) {
             printf("failed:%d\n", errno);
         }
         puts("----------------------------");
-        puts("ListDir('1*', ((1 << LIST_DIR) | (1 << LIST_FILE))");
+        puts("FTSListDir('1*', ((1 << LIST_DIR) | (1 << LIST_FILE))");
         puts("----------------------------");
-        vList = ListDir("testlistdir", "1*", ((1 << LIST_DIR) | (1 << LIST_FILE)));
-        test_cond("CountDir", 2==CountDir("testlistdir", "1*", ((1 << LIST_DIR) | (1 << LIST_FILE))));
+        vList = FTSListDir("testFTSListDir", "1*", ((1 << LIST_DIR) | (1 << LIST_FILE)));
+        test_cond("FTSCountDir", 2==FTSCountDir("testFTSListDir", "1*", ((1 << LIST_DIR) | (1 << LIST_FILE))));
         darray_init(vExpectedList);
         if (vList) {
-            darray_appends_t(vExpectedList, const char*, "testlistdir/1234", "testlistdir/12testfile.inc");
+            darray_appends_t(vExpectedList, const char*, "testFTSListDir/1234", "testFTSListDir/12testfile.inc");
+            test_list(vList, vExpectedList);
+            dStringArray_free(vList);
+            darray_free(vExpectedList);
+        } else {
+            printf("failed:%d\n", errno);
+        }
+        vList = ListDir("testFTSListDir", "1*", ((1 << LIST_DIR) | (1 << LIST_FILE)), 0 , 0);
+        test_cond("CountDir", 2==CountDir("testFTSListDir", "1*", ((1 << LIST_DIR) | (1 << LIST_FILE))));
+        darray_init(vExpectedList);
+        if (vList) {
+            darray_appends_t(vExpectedList, const char*, "1234", "12testfile.inc");
             test_list(vList, vExpectedList);
             dStringArray_free(vList);
             darray_free(vExpectedList);
@@ -628,13 +786,24 @@ int main(void) {
             printf("failed:%d\n", errno);
         }
         puts("----------------------------");
-        puts("ListDir('b*', 1 << LIST_DIR)");
+        puts("FTSListDir('b*', 1 << LIST_DIR)");
         puts("----------------------------");
-        vList = ListDir("testlistdir", "b*", 1 << LIST_DIR);
-        test_cond("CountDir", 2==CountDir("testlistdir", "b*", 1 << LIST_DIR));
+        vList = FTSListDir("testFTSListDir", "b*", 1 << LIST_DIR);
+        test_cond("FTSCountDir", 2==FTSCountDir("testFTSListDir", "b*", 1 << LIST_DIR));
         darray_init(vExpectedList);
         if (vList) {
-            darray_appends_t(vExpectedList, const char*, "testlistdir/better", "testlistdir/betterlink");
+            darray_appends_t(vExpectedList, const char*, "testFTSListDir/better", "testFTSListDir/betterlink");
+            test_list(vList, vExpectedList);
+            dStringArray_free(vList);
+            darray_free(vExpectedList);
+        } else {
+            printf("failed:%d\n", errno);
+        }
+        vList = ListDir("testFTSListDir", "b*", (1 << LIST_DIR | 1 << LIST_SYMBOLIC), 0, 0);
+        test_cond("CountDir", 2==CountDir("testFTSListDir", "b*", 1 << LIST_DIR | 1 << LIST_SYMBOLIC));
+        darray_init(vExpectedList);
+        if (vList) {
+            darray_appends_t(vExpectedList, const char*, "better", "betterlink");
             test_list(vList, vExpectedList);
             dStringArray_free(vList);
             darray_free(vExpectedList);
@@ -642,12 +811,49 @@ int main(void) {
             printf("failed:%d\n", errno);
         }
         puts("----------------------------");
-        puts("ListDir('b*', (1 << LIST_DIR)|(1<<LIST_PHYSICAL)");
+        puts("FTSListDir('b*', (1 << LIST_DIR)|(1<<LIST_PHYSICAL)");
         puts("----------------------------");
-        vList = ListDir("testlistdir", "b*", (1 << LIST_DIR)|(1<<LIST_PHYSICAL));
+        vList = FTSListDir("testFTSListDir", "b*", (1 << LIST_DIR)|(1<<LIST_PHYSICAL));
+        test_cond("FTSCountDir", 1==FTSCountDir("testFTSListDir", "b*", 1 << LIST_DIR | 1<<LIST_PHYSICAL));
         darray_init(vExpectedList);
         if (vList) {
-            darray_appends_t(vExpectedList, const char*, "testlistdir/better");
+            darray_appends_t(vExpectedList, const char*, "testFTSListDir/better");
+            test_list(vList, vExpectedList);
+            dStringArray_free(vList);
+            darray_free(vExpectedList);
+        } else {
+            printf("failed:%d\n", errno);
+        }
+        vList = ListDir("testFTSListDir", "b*", (1 << LIST_DIR), 0, 0);
+        test_cond("CountDir", 1==CountDir("testFTSListDir", "b*", 1 << LIST_DIR));
+        darray_init(vExpectedList);
+        if (vList) {
+            darray_appends_t(vExpectedList, const char*, "better");
+            test_list(vList, vExpectedList);
+            dStringArray_free(vList);
+            darray_free(vExpectedList);
+        } else {
+            printf("failed:%d\n", errno);
+        }
+        puts("----------------------------");
+        puts("FTSListDir('n*', (1 << LIST_SYMBOLIC_NONE)|(1<<LIST_PHYSICAL)");
+        puts("----------------------------");
+        vList = FTSListDir("testFTSListDir", "n*", (1 << LIST_SYMBOLIC_NONE));
+        test_cond("FTSCountDir", 1==FTSCountDir("testFTSListDir", "n*", 1 << LIST_SYMBOLIC_NONE));
+        darray_init(vExpectedList);
+        if (vList) {
+            darray_appends_t(vExpectedList, const char*, "testFTSListDir/nosuchfile");
+            test_list(vList, vExpectedList);
+            dStringArray_free(vList);
+            darray_free(vExpectedList);
+        } else {
+            printf("failed:%d\n", errno);
+        }
+        vList = ListDir("testFTSListDir", "n*", (1 << LIST_SYMBOLIC_NONE), 0, 0);
+        test_cond("CountDir", 1==CountDir("testFTSListDir", "n*", 1 << LIST_SYMBOLIC_NONE));
+        darray_init(vExpectedList);
+        if (vList) {
+            darray_appends_t(vExpectedList, const char*, "nosuchfile");
             test_list(vList, vExpectedList);
             dStringArray_free(vList);
             darray_free(vExpectedList);

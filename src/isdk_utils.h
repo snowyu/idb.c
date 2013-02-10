@@ -39,7 +39,7 @@
  #define O_RW_RW_R__PERMS    (S_IWUSR|S_IRUSR|S_IWGRP|S_IRGRP|S_IROTH)
  #define O_RWXRWXR_XPERMS    (S_IWUSR|S_IXUSR|S_IRUSR|S_IWGRP|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH)
  #define O_EXCL_CREAT        (O_EXCL|O_CREAT)
- // the ListDir Options:
+ // the FTSListDir Options:
  #define LIST_DESCENDING            0  //the list dir order
  #define LIST_PHYSICAL              1  //list physical files or logical files(following the symbolic files).
  #define LIST_DIR                   2  //list directories in the aDir
@@ -50,6 +50,13 @@
  #define WALK_ITEM_OK               0
  #define WALK_ITEM_SKIP             1
  #define WALK_ITEM_STOP            -1
+
+ // the IsDirectory result constants:
+ #define PATH_IS_FILE       0
+ #define PATH_IS_DIR        1
+ #define PATH_IS_SYM_DIR    2    //is symlink dir
+ #define PATH_IS_SYM_FILE   -999 //is symlink file
+ #define PATH_IS_NOT_EXISTS -2
 
  #ifdef __cplusplus
  extern "C"
@@ -84,7 +91,7 @@ static inline void dStringArray_free(dStringArray* arr) {
 }
 
 typedef struct stat Stat;
-typedef int(*WalkDirHandler)(int aCount,const FTSENT *aNode, void *aPtr);
+typedef int(*FTSWalkDirHandler)(int aCount,const FTSENT *aNode, void *aPtr);
 
 /* Open named file without truncate or create safely */
 static int open_or_create_file(const char *file, int flags, mode_t perms);
@@ -108,7 +115,7 @@ int DeleteDir(const char* aDir);
 //  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
 //aProcessor: the processor for matched item
 // retrun matched count if successful, or, means errno(<0).
-int WalkDir(const char* aDir, const char* aPattern, int aOptions, WalkDirHandler aProcessor, void *aPtr);
+int FTSWalkDir(const char* aDir, const char* aPattern, int aOptions, FTSWalkDirHandler aProcessor, void *aPtr);
 //Count files or directories in the aDir.
 //aOptions: the list dir options set:
 //  * LIST_DESCENDING(0Bit): the list dir order
@@ -118,7 +125,7 @@ int WalkDir(const char* aDir, const char* aPattern, int aOptions, WalkDirHandler
 //  * LIST_SYMBOLIC(4Bit): list symbolic links in the aDir
 //  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
 //retrun <0 means failed errno.
-int CountDir(const char* aDir, const char* aPattern, int aOptions);
+int FTSCountDir(const char* aDir, const char* aPattern, int aOptions);
 //List files or directories in the aDir.
 //aOptions: the list dir options set:
 //  * LIST_DESCENDING(0Bit): the list dir order
@@ -128,7 +135,16 @@ int CountDir(const char* aDir, const char* aPattern, int aOptions);
 //  * LIST_SYMBOLIC(4Bit): list symbolic links in the aDir
 //  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
 //retrun 0 means failed, or return the list of the matched directories(the value is sds type).
-dStringArray* ListDir(const char* aDir, const char* aPattern, int aOptions);
+dStringArray* FTSListDir(const char* aDir, const char* aPattern, int aOptions);
+
+//aOptions:
+//  * LIST_DIR(2Bit): list directories in the aDir
+//  * LIST_FILE(3Bit): list files in the aDir
+//  * LIST_SYMBOLIC(4Bit): list symbolic links in the aDir
+//  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
+size_t CountDir(const char* aDir, const char* aPattern, int aOptions);
+dStringArray* ListDir(const char* aDir, const char* aPattern, int aOptions, size_t aSkipCount, size_t aCount);
+
 
 //test the filename whether is a directory
 //return 0 = a file, 1 = a Dir, 2 = a symbolic dir, -999 = a symbolic file, -2 = Not Exists(ENOENT), < 0 others means error code.
