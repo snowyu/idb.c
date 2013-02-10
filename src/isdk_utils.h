@@ -140,8 +140,8 @@ dStringArray* FTSListDir(const char* aDir, const char* aPattern, int aOptions);
 //aOptions:
 //  * LIST_DIR(2Bit): list directories in the aDir
 //  * LIST_FILE(3Bit): list files in the aDir
-//  * LIST_SYMBOLIC(4Bit): list symbolic links in the aDir
-//  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
+//  * LIST_SYMBOLIC(4Bit): list symbolic links in the aDir (MUST BE WITH LIST_DIR or LIST_FILE)
+//  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir (THE SAME ABOVE)
 size_t CountDir(const char* aDir, const char* aPattern, int aOptions);
 dStringArray* ListDir(const char* aDir, const char* aPattern, int aOptions, size_t aSkipCount, size_t aCount);
 
