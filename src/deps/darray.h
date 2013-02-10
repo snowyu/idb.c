@@ -114,6 +114,10 @@
 
 #define DARRAY_MIN_GROWING_SIZE 64
 
+#ifndef DREALLOC_FUNC
+ #define DREALLOC_FUNC realloc
+#endif
+
 /*** Life cycle ***/
 
 #define darray(type) struct {type *item; size_t size; size_t alloc;void (*onFree)(void *ptr);}
@@ -274,7 +278,7 @@ typedef darray(unsigned long)  darray_ulong;
 	} while(0)
 
 #define darray_realloc(arr, newAlloc) do { \
-		(arr).item = realloc((arr).item, ((arr).alloc = (newAlloc)) * sizeof(*(arr).item)); \
+		(arr).item = DREALLOC_FUNC((arr).item, ((arr).alloc = (newAlloc)) * sizeof(*(arr).item)); \
 	} while(0)
 #define darray_growalloc(arr, need) do { \
 		size_t __need = (need); \

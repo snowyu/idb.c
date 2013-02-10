@@ -33,6 +33,7 @@
 #include "kbit.h"
 
 #define HAVE_UNISTD_H  1
+#define DREALLOC_FUNC zrealloc
 
 /* a=target variable, b=bit number to act upon 0-n */
 #define BIT_SET(a,b) ((a) |= (1<<(b)))
