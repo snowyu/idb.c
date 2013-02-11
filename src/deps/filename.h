@@ -29,8 +29,9 @@ extern "C" {
 # endif
 
 // Path Seperator:
-# define PATH_SEP_CHAR '/'
 # define PATH_SEP_STR  "/"
+# define PATH_SEP  (PATH_SEP_STR[0])
+//# define PATH_SEP '/'
 
 /* Pathname support.
    ISSLASH(C)           tests whether C is a directory separator character.
