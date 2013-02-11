@@ -70,7 +70,9 @@
  *
  *
  * */
-typedef darray(sds)           dStringArray;
+
+typedef darray(const char*)     dCStrArray;
+typedef darray(sds)             dStringArray;
 static void _darray_sds_free_handler(void* aPtr)
 {
     if (aPtr) {

@@ -675,7 +675,6 @@ static int UrlDecode(char *vStr, int len)
 
 //Note: sds.* zmalloc.* config.h come from redis src
 //gcc --std=c99 -I. -Ideps  -o test -DISDK_UTILS_TEST_MAIN isdk_utils.c deps/sds.c deps/zmalloc.c
-typedef darray(const char*) dCStrArray;
 void test_list(dStringArray* result, dCStrArray expected) {
         test_cond("List SHOULD NOT NULL", result);
         test_cond("List Length Test", darray_size(*result)==darray_size(expected));
@@ -861,7 +860,8 @@ int main(void) {
             printf("failed:%d\n", errno);
         }
         puts("----------------------------");
-
+        test_cond("DeleteDir('testFTSListDir')", DeleteDir("testFTSListDir") == 0);
+        test_cond("DirectoryExists('testFTSListDir') is false", DirectoryExists("testFTSListDir") == 0);
 
 
         ForceDirectories("testdir/good/better/best?", O_RWXRWXR_XPERMS);
