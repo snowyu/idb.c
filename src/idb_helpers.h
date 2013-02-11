@@ -56,10 +56,34 @@
  sds GetDirValue(const sds aDir, const sds aAttribute);
  int SetDirValue(const sds aDir, const sds aValue, const sds aAttribute);
 
+
+ //the atrribute operations:
+ //if aAttribute is NULL means the default attribute: .value
  int iIsExists(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType);
  sds iGet(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType);
  int iPut(const sds aDir, const char* aKey, const int aKeyLen, const sds aValue, const sds aAttribute, const int aStoreType);
+//int symlink(const char *srcPath, const char *destPath); //make symbolic link(destPath) to a srcPath
+
+ //the key operations:
+ //Make a new aAlias of the aKey
+ //return: Upon successful completion, a zero value is returned.  else the error code returned.
+ int iAlias(const sds aDir, const char* aKey, const int aKeyLen, const char* aAlias, const int aAliasLen);
+ //delete the key includes the subkeys.
  int iDelete(const sds aDir, const char* aKey, const int aKeyLen);
+ //is the key exists?
+ //-1 means err, 0 means false, 1 means true.
+ static inline int iKeyExists(const sds aDir, const char* aKey, const int aKeyLen)
+ {
+     sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
+     int result = DirectoryExists(vDir);
+     sdsfree(vDir);
+     return result;
+ }
+
+ //the subkey operations:
+ //aPattern = NULL means match all subkeys
+ dStringArray* iSubkeys(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern, const int aSkipCount, const int aCount);
+ size_t iSubkeyCount(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern);
 
  #ifdef __cplusplus
  }

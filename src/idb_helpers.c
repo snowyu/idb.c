@@ -25,7 +25,7 @@
 #include "config.h"
 #include <errno.h>
 #ifdef HAVE_UNISTD_H
-#include <unistd.h>
+#include <unistd.h> //symlink
 #endif /* HAVE_UNISTD_H */
 #include <string.h>
 #include <stdbool.h>
@@ -166,13 +166,151 @@ int iDelete(const sds aDir, const char* aKey, const int aKeyLen){
     return result;
 }
 
+//the simple version to get relative path.
+//get the relative path from aFrom dir
+//"myfrom", "mydest" = "mydest"
+//"myfrom/1", "myfrom/mydest" = "mydest"
+//"myfrom/1/2", "myfrom/mydest" = "../mydest"
+//"1/2", "mydest" = "../mydest"
+//"1/2", "a/b/c/mydest" = "../a/b/c/mydest"
+//"/myfrom", "mydest" = "mydest"
+//"myfrom", "/mydest" = "mydest"
+//TODO: the ".." is not supported yet.
+sds GetRelativePath(const char* aFrom, const int aFromLen, const char* aTo, const int aToLen)
+{
+    const char* vFromPart = aFrom;
+    const char* vToPart   = aTo;
+    while (vFromPart[0] == PATH_SEP) vFromPart++;
+    while (vToPart[0] == PATH_SEP) vToPart++;
+    char* vFromSep = strchr(vFromPart, PATH_SEP);
+    char* vToSep   = strchr(vToPart, PATH_SEP);
+    while (vFromSep && vToSep) {
+        //try to get rid of the same part path.
+        int vFromLen = vFromSep-vFromPart;
+        int vToLen   = vToSep-vToPart;
+        if (vFromLen == vToLen) {
+            if (strncmp(vFromPart, vToPart, vFromLen) == 0) {
+                vFromPart = vFromSep + 1;
+                vToPart   = vToSep + 1;
+                vFromSep  = strchr(vFromPart, PATH_SEP);
+                vToSep    = strchr(vToPart, PATH_SEP);
+                continue;
+            }
+        }
+        break;
+    }
+    //count the PATH_SEP of the vFromPart
+    int vSepCount = 0;
+    vFromSep = strchr(vFromPart, PATH_SEP);
+    while (vFromSep) {
+        vSepCount++;
+        vFromSep++;
+        vFromSep=strchr(vFromSep, PATH_SEP);
+    }
+    //if the last char is PATH_SEP
+    if (aFrom[aFromLen-1]==PATH_SEP) vSepCount--;
+    sds result = sdsnewlen(NULL, 0);
+    while (vSepCount) {
+        result = sdscatlen(result, "..", 2);
+        result = sdscatlen(result, PATH_SEP_STR, 1);
+        vSepCount--;
+    }
+    result = sdscat(result, vToPart);
+    return result;
+}
+
+int iAlias(const sds aDir, const char* aKey, const int aKeyLen, const char* aAlias, const int aAliasLen)
+{
+    //sds vSrcDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
+    sds vDestDir = sdsJoinPathLen(sdsdup(aDir), aAlias, aAliasLen);
+    sds vSrcDir = GetRelativePath(aAlias, aAliasLen, aKey, aKeyLen);
+    //make symbolic link(destPath) to a srcPath
+    int result = symlink(vSrcDir, vDestDir);
+    if (result != 0) result = errno;
+    sdsfree(vSrcDir);
+    sdsfree(vDestDir);
+    return result;
+}
+
+//get the count number from attribute ".count" if any
+long iGetCount(const sds aDir, const char* aKey, const int aKeyLen, const int aStoreType)
+{
+    sds vCountAttr = sdsnew(".count");
+    sds s= iGet(aDir, aKey, aKeyLen, vCountAttr, aStoreType);
+    sdsfree(vCountAttr);
+    long result = 0;
+    if (s) {
+        char* vEnd = NULL;
+        //strtol: convert str to long
+        //base 0 means the same syntax used for integer constants in C
+        result = strtol(s, &vEnd, 0);
+        if (errno)
+            result = -errno;
+        else if (*vEnd)
+            result = -1; //Converted partially.
+    }
+    return result;
+}
+
+size_t iSubkeyCount(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern)
+{
+    int vOpts = 1 << LIST_DIR | 1<< LIST_SYMBOLIC;
+    sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
+
+    size_t result = CountDir(vDir, aPattern, vOpts);
+    sdsfree(vDir);
+    return result;
+}
+
+/*
+struct _SubkeysRec {
+        dStringArray* result;
+        int skipCount;
+};
+
+static int process_matched_dir(int aCount, const FTSENT *aNode, void *aPtr){
+        sds s = sdsnew(aNode->fts_path);
+        struct _SubkeysRec* vSubkeys = aPtr;
+        darray_append(*(vSubkeys->result), s);
+        return WALK_ITEM_OK;
+}
+*/
+dStringArray* iSubkeys(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern, const int aSkipCount, const int aCount)
+{
+    int vOpts = 1 << LIST_DIR | 1<< LIST_SYMBOLIC;
+    //BIT_SET(vOpts, LIST_DIR);
+    //BIT_SET(vOpts, LIST_SYMBOLIC);
+    sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
+
+    dStringArray* result = ListDir(vDir, aPattern, vOpts, aSkipCount, aCount);
+    sdsfree(vDir);
+
+    return result;
+}
+
 #ifdef IDB_HELPER_TEST_MAIN
 #include <stdio.h>
 #include "testhelp.h"
 
 //Note: sds.* zmalloc.* config.h come from redis src
-//gcc --std=c99 -I. -Ideps  -o test -DIDB_HELPER_TEST_MAIN idb_helpers.c isdk_xattr.c isdk_utils.c deps/sds.c deps/zmalloc.c deps/adlist.c
-int main(int argc, char **argv) 
+//gcc --std=c99 -I. -Ideps  -o test -DIDB_HELPER_TEST_MAIN idb_helpers.c isdk_xattr.c isdk_utils.c deps/sds.c deps/zmalloc.c
+void test_list(dStringArray* result, dCStrArray expected) {
+        test_cond("List SHOULD NOT NULL", result);
+        test_cond("List Length Test", darray_size(*result)==darray_size(expected));
+        if (darray_size(*result)==darray_size(expected)) {
+                sds s;
+                char* s1 = "LIST Item:";
+            for (int i=0; i< darray_size(*result); i++) {
+                    s = sdsnew(s1);
+                    s = sdscat(s, darray_item(*result, i));
+                    test_cond(s, strcmp(darray_item(*result, i), darray_item(expected, i))==0);
+                    sdsfree(s);
+            }
+        } else {
+            printf("expected Length is %lu, but it is %lu in fact.\n", darray_size(expected), darray_size(*result));
+        }
+}
+int main(int argc, char **argv)
 {
     {
         ForceDirectories("testdir/good/better/best", O_RWXRWXR_XPERMS);
@@ -217,6 +355,47 @@ int main(int argc, char **argv)
         test_cond("iGet(testdir, mytestkey, NULL, STORE_IN_XATTR)",
                 result && sdslen(result) == 8 && memcmp(result, "hi world\0", 9) == 0
         );
+        //
+        iPut(x, "myhi/see/u", 10, y, NULL, STORE_IN_FILE);
+        iPut(x, "myhi/fa/si", 10, y, NULL, STORE_IN_FILE);
+        iPut(x, "mygoo", 5, y, NULL, STORE_IN_FILE);
+        iPut(x, "bygoo", 5, y, NULL, STORE_IN_FILE);
+        test_cond("iSubkeyCount(x, '', 0, NULL)",iSubkeyCount(x, "", 0, NULL)==5);
+        puts("----------------------------");
+        puts("iSubkeys(x, "", 0, NULL, 0, 0)");
+        puts("----------------------------");
+        dCStrArray vExpectedList = darray_new();
+        darray_appends_t(vExpectedList, const char*, "bygoo", "good", "mygoo", "myhi", "mytestkey");
+        dStringArray* vList = iSubkeys(x, "", 0, NULL, 0, 0);
+        test_list(vList, vExpectedList);
+        dStringArray_free(vList);
+        darray_free(vExpectedList);
+        puts("----------------------------");
+        sds rpath = GetRelativePath("myfrom", 6, "mydest", 6);
+        test_cond("GetRelativePath(\"myfrom\", 6, \"mydest\", 6)", strcmp(rpath, "mydest")==0);
+        sdsfree(rpath);
+        rpath = GetRelativePath("myfrom/1dg/", 11, "myfrom/mydest", 13);
+        test_cond("GetRelativePath(\"myfrom/1dg/\", 11, \"myfrom/mydest\", 13)", strcmp(rpath, "mydest")==0);
+        sdsfree(rpath);
+        rpath = GetRelativePath("myfrom/1/2", 10, "myfrom/mydest", 13);
+        test_cond("GetRelativePath(\"myfrom/1/2\", 10, \"myfrom/mydest\", 13)", strcmp(rpath, "../mydest")==0);
+        sdsfree(rpath);
+        rpath = GetRelativePath("myfrom/1/2", 10, "myfrom/a/b/c/mydest", 19);
+        test_cond("GetRelativePath(\"myfrom/1/2\", 10, \"myfrom/a/b/c/mydest\", 19)", strcmp(rpath, "../a/b/c/mydest")==0);
+        sdsfree(rpath);
+        rpath = GetRelativePath("1/2/", 4, "a/b/c/mydest/", 13);
+        test_cond("GetRelativePath(\"1/2/\", 4, \"a/b/c/mydest/\", 13)", strcmp(rpath, "../a/b/c/mydest/")==0);
+        sdsfree(rpath);
+        rpath = GetRelativePath("/1/2/", 5, "a/b/c/mydest/", 13);
+        test_cond("GetRelativePath(\"/1/2/\", 5, \"a/b/c/mydest/\", 13)", strcmp(rpath, "../a/b/c/mydest/")==0);
+        sdsfree(rpath);
+
+        iAlias(x, "myhi/see/u", 10, "myhi/see/u1", 11);
+        test_cond("iAlias('myhi/see/u', 'myhi/see/u1')", IsDirectory("testdir/myhi/see/u1") == PATH_IS_SYM_DIR);
+
+        iAlias(x, "myhi/see/u", 10, "myhi/fa/u", 11);
+        test_cond("iAlias('myhi/see/u', 'myhi/fa/u')", IsDirectory("testdir/myhi/fa/u") == PATH_IS_SYM_DIR);
+
         test_cond("iDelete(testdir, mytestkey)", iDelete(x, key, sdslen(key)));
         test_cond("IsDirValueExists(testdir/mytestkey, NULL) == false", !IsDirValueExists(path, NULL));
         test_cond("iIsExists(testdir, mytestkey) should not be exists.", !iIsExists(x, key, strlen(key), NULL, STORE_IN_FILE));
