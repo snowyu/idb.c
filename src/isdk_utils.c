@@ -694,17 +694,19 @@ void test_list(dStringArray* result, dCStrArray expected) {
 
 int main(void) {
     {
-        DeleteDir("testFTSListDir");
+        //DeleteDir("testFTSListDir");
         ForceDirectories("testFTSListDir/good", O_RWXRWXR_XPERMS);
         ForceDirectories("testFTSListDir/better", O_RWXRWXR_XPERMS);
         ForceDirectories("testFTSListDir/1234", O_RWXRWXR_XPERMS);
         symlink("better", "testFTSListDir/betterlink");
+        test_cond("DirectoryExists('testFTSListDir/betterlink') is true", DirectoryExists("testFTSListDir/betterlink") == 1);
         int fd1 = open_or_create_file("testFTSListDir/atestfile", 0, O_RW_RW_R__PERMS);
         close(fd1);
         fd1 = open_or_create_file("testFTSListDir/12testfile.inc", 0, O_RW_RW_R__PERMS);
         close(fd1);
         symlink("atestfile", "testFTSListDir/afilelink");
         symlink("brokenlink", "testFTSListDir/nosuchfile");
+        test_cond("DirectoryExists('testFTSListDir/nosuchfile') is false", DirectoryExists("testFTSListDir/nosuchfile") == 0);
         test_cond("IsDirectory('testFTSListDir/good')==PATH_IS_DIR", IsDirectory("testFTSListDir/good") == PATH_IS_DIR);
         test_cond("IsDirectory('testFTSListDir/betterlink')==PATH_IS_SYM_DIR", IsDirectory("testFTSListDir/betterlink") == PATH_IS_SYM_DIR);
         test_cond("IsDirectory('testFTSListDir/afilelink')==PATH_IS_SYM_FILE", IsDirectory("testFTSListDir/afilelink") == PATH_IS_SYM_FILE);
