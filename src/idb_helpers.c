@@ -209,7 +209,7 @@ sds GetRelativePath(const char* aFrom, const int aFromLen, const char* aTo, cons
     }
     //if the last char is PATH_SEP
     if (aFrom[aFromLen-1]==PATH_SEP) vSepCount--;
-    sds result = sdsnewlen(NULL, 0);
+    sds result = sdsnewlen(NULL, aToLen+(vSepCount*3));
     while (vSepCount) {
         result = sdscatlen(result, "..", 2);
         result = sdscatlen(result, PATH_SEP_STR, 1);
@@ -362,7 +362,7 @@ int main(int argc, char **argv)
         iPut(x, "bygoo", 5, y, NULL, STORE_IN_FILE);
         test_cond("iSubkeyCount(x, '', 0, NULL)",iSubkeyCount(x, "", 0, NULL)==5);
         puts("----------------------------");
-        puts("iSubkeys(x, "", 0, NULL, 0, 0)");
+        puts("iSubkeys(x, \"\", 0, NULL, 0, 0)");
         puts("----------------------------");
         dCStrArray vExpectedList = darray_new();
         darray_appends_t(vExpectedList, const char*, "bygoo", "good", "mygoo", "myhi", "mytestkey");
