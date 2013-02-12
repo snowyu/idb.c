@@ -45,11 +45,17 @@ sds sdsnewlen(const void *init, size_t initlen) {
         sh = zcalloc(sizeof(struct sdshdr)+initlen+1);
     }
     if (sh == NULL) return NULL;
-    sh->len = initlen;
-    sh->free = 0;
-    if (initlen && init)
+    if (init) {
+        sh->len = initlen;
+        sh->free = 0;
+    } else {
+        sh->len = 0;
+        sh->free = initlen;
+    }
+    if (initlen && init) {
         memcpy(sh->buf, init, initlen);
-    sh->buf[initlen] = '\0';
+        sh->buf[initlen] = '\0';
+    }
     return (char*)sh->buf;
 }
 
