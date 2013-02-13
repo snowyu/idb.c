@@ -59,11 +59,12 @@
  #endif
 
 struct __iBaseItem {
-  char *path;                   //the iDB item path.
-  bool loadOnDemand;
-  bool storeInXattr;            //enabled the xattr storage.
-  bool storeInFile;             //enabled the file storage.
-  bool raiseOnTypeMismatch;     //raise error if Type Mismatch when true
+  char      *path;                  //the iDB item path.
+  bool      loadOnDemand;
+  size_t    maxPageSize;            //the max page count for the subkeys
+  bool      storeInXattr;           //enabled the xattr storage.
+  bool      storeInFile;            //enabled the file storage.
+  bool      raiseOnTypeMismatch;    //raise error if Type Mismatch when true
 };
 typedef struct __iBaseItem iBaseItem;
 
@@ -73,11 +74,12 @@ struct __iItem {
     struct __iBaseItem;  //the anonymous-structs, only avaiable on C11: gcc -fms-extensions to enable it.
   #else
     //--------------------------------------------------------------------
-    char *path;                   //the iDB item path.
-    bool loadOnDemand;
-    bool storeInXattr;            //enabled the xattr storage.
-    bool storeInFile;             //enabled the file storage.
-    bool raiseOnTypeMismatch;     //raise error if Type Mismatch when true
+      char      *path;                  //the iDB item path.
+      bool      loadOnDemand;
+      size_t    maxPageSize;            //the max page count for the subkeys
+      bool      storeInXattr;           //enabled the xattr storage.
+      bool      storeInFile;            //enabled the file storage.
+      bool      raiseOnTypeMismatch;    //raise error if Type Mismatch when true
     //--------------------------------------------------------------------
   #endif
     int  type;             //the Item type.
@@ -92,11 +94,12 @@ struct __iDB {
     struct __iBaseItem;  //the anonymous-structs, only avaiable on C11: gcc -fms-extensions to enable it.
   #else
     //--------------------------------------------------------------------
-    char *path;                   //the iDB item path.
-    bool loadOnDemand;
-    bool storeInXattr;            //enabled the xattr storage.
-    bool storeInFile;             //enabled the file storage.
-    bool raiseOnTypeMismatch;     //raise error if Type Mismatch when true
+      char      *path;                  //the iDB item path.
+      bool      loadOnDemand;
+      size_t    maxPageSize;            //the max page count for the subkeys
+      bool      storeInXattr;           //enabled the xattr storage.
+      bool      storeInFile;            //enabled the file storage.
+      bool      raiseOnTypeMismatch;    //raise error if Type Mismatch when true
     //--------------------------------------------------------------------
   #endif
     bool opened;                  //whether the internal database is opened
