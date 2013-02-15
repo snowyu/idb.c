@@ -92,6 +92,50 @@ static inline void dStringArray_free(dStringArray* arr) {
     zfree(arr);
 }
 
+
+/**
+ * err_set_progname - set the program name - extract from ccan/err
+ * @name: the name to use for err, errx, warn and warnx
+ *
+ * The BSD err.h calls know the program name, unfortunately there's no
+ * portable way for the CCAN replacements to do that on other systems.
+ *
+ * If you don't call this with argv[0], it will be "??".
+ *
+ * Example:
+ *	err_set_progname(argv[0]);
+ */
+void err_set_progname(const char *name);
+
+/**
+ * warn - print a message to stderr based on format and errno. - extract from ccan/err
+ * @eval: the exit code
+ * @fmt: the printf-style format string
+ *
+ * The format string is printed to stderr like so:
+ *	<executable name>: <format>: <strerror(errno)>\n
+ *
+ * Example:
+ *	char *p = strdup("hello");
+ *	if (!p)
+ *		warn("Failed to strdup 'hello'");
+ */
+void warn(const char *fmt, ...);
+
+/**
+ * warnx - print a message to stderr based on format. - extract from ccan/err
+ * @eval: the exit code
+ * @fmt: the printf-style format string
+ *
+ * The format string is printed to stderr like so:
+ *	<executable name>: <format>\n
+ *
+ * Example:
+ *	if (argc != 1)
+ *		warnx("I don't expect any arguments (ignoring)");
+ */
+void warnx(const char *fmt, ...);
+
 typedef struct stat Stat;
 typedef int(*FTSWalkDirHandler)(int aCount,const FTSENT *aNode, void *aPtr);
 

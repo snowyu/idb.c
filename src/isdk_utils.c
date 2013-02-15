@@ -51,6 +51,36 @@
 
 #define FNM_MATCHED(aPattern, aDir) (!aPattern || fnmatch(aPattern, aDir, FNM_PERIOD) == 0)
 
+static const char *progname = "??";
+
+void err_set_progname(const char *name)
+{
+	progname = name;
+}
+
+void warn(const char *fmt, ...)
+{
+	int err_errno = errno;
+	va_list ap;
+
+	fprintf(stderr, "%s: ", progname);
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	fprintf(stderr, ": %s\n", strerror(err_errno));
+}
+
+void warnx(const char *fmt, ...)
+{
+	va_list ap;
+
+	fprintf(stderr, "%s: ", progname);
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	fprintf(stderr, "\n");
+}
+
 //Author: J Leffler
 static int do_mkdir(const char* path, mode_t mode)
 {
