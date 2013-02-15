@@ -97,4 +97,13 @@ void sdsIncrLen(sds s, int incr);
 sds sdsRemoveFreeSpace(sds s);
 size_t sdsAllocSize(sds s);
 
+static inline sds sdsSetlen(const sds s, int len) {
+    sds result = s;
+    struct sdshdr *sh = (void*)(s-(sizeof(struct sdshdr)));
+    int incr = len - sh->len;
+    if (incr > sh->free) result = sdsMakeRoomFor(s, incr);
+    sdsIncrLen(s, incr);
+    return result;
+}
+
 #endif
