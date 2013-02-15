@@ -32,9 +32,11 @@
  #include "isdk_xattr.h"
  #include "isdk_utils.h"
 
- #define IDB_KEY_TYPE_NAME ".type"
- #define IDB_VALUE_NAME ".value"
- #define XATTR_PREFIX  "user."
+ #define IDB_KEY_TYPE_NAME      ".type"
+ #define IDB_VALUE_NAME         ".value"
+ #define IDB_SPLIT_ATTR_POSTFIX ".me"                           //the attribute postfix for the split key.
+ #define IDB_SPLIT_KEY_NAME     ".key"IDB_SPLIT_ATTR_POSTFIX   //store the key name in the file for the split key dir.
+ #define XATTR_PREFIX           "user."
 
  //the store types:
  #define STORE_IN_FILE  1
@@ -47,6 +49,10 @@
   {
  #endif
 
+ //<=0 means no limit. the max iDB items count in the same dir.
+ const int iDBMaxItemCount = -1;//45;
+
+
  //Low-Level functions
  //-1 means err, 0 means false, 1 means true.
  int IsDirValueExists(const sds aDir, const sds aAttribute);
@@ -54,7 +60,7 @@
   * U must free the result after using it.
   */
  sds GetDirValue(const sds aDir, const sds aAttribute);
- int SetDirValue(const sds aDir, const sds aValue, const sds aAttribute);
+ bool SetDirValue(const sds aDir, const sds aValue, const sds aAttribute);
 
 
  //the atrribute operations:
