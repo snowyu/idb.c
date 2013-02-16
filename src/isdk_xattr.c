@@ -133,7 +133,7 @@ static ssize_t xattr_setxattr(const char *path, const char *name,
     }
 }
 
-static ssize_t xattr_removexattr(const char *path, const char *name,
+static inline ssize_t xattr_removexattr(const char *path, const char *name,
                                  int options)
 {
     if (!(options == 0 ||
@@ -595,7 +595,7 @@ ssize_t ListXattr(const char *path, char *namebuf,
     return xattr_listxattr(path, namebuf, size, 0);
 }
 
-int IsXattrExists(const char* aFile, const char* aKey)
+bool IsXattrExists(const char* aFile, const char* aKey)
 {
     ssize_t vLen = xattr_getxattr(aFile, aKey, NULL, 0, 0, 0);
 	//int result = vLen
@@ -629,9 +629,17 @@ ssize_t SetXattr(const char* aFile, const char* aKey, sds aValue)
     int vLen = 0;
 	if (aValue) vLen = sdslen(aValue);
     ssize_t result = xattr_setxattr(aFile, aKey, aValue, vLen, 0, 0);
+    if (result == -1) result = errno;
     return result;
 }
 
+//0: ok; others: errcode.
+ssize_t DelXattr(const char* aFile, const char* aKey)
+{
+    ssize_t result = xattr_removexattr(aFile, aKey, 0);
+    if (result == -1) result = errno;
+    return result;
+}
 
 #ifdef ISDK_XATTR_TEST_MAIN
 #include <stdio.h>
@@ -648,6 +656,7 @@ int main(void) {
         test_cond("touch('mytestfile')", fd != -1);
 
         sds path = sdsnew("mytestfile"), key = sdsnew("user.mydname"), value = sdsnew("hi world!");
+        test_cond("SetXattr(nosuchfile, mydname, 'hi world!') == ENOENT", SetXattr("nosuchmytestfile", key, value)== ENOENT);
         test_cond("SetXattr(mytestfile, mydname, 'hi world!')", SetXattr(path, key, value)== 0);
         test_cond("IsXattrExists(mytestfile, mydname)", IsXattrExists(path, key));
         test_cond("IsXattrExists(mytestfile, notexists)", !IsXattrExists(path, "notexists"));
@@ -662,6 +671,9 @@ int main(void) {
         test_cond("GetXattr(mytestfile, mydname)",
             result && sdslen(result) == 0 && memcmp(result, "\0", 1) == 0
         );
+        test_cond("DelXattr(mytestfile, mydname)", DelXattr(path, key) == 0);
+        test_cond("!IsXattrExists(mytestfile, mydname)", !IsXattrExists(path, key));
+        test_cond("DelXattr(mytestfile, mydname)", DelXattr(path, key) == ENOATTR);
         sdsfree(path);
         sdsfree(key);
         sdsfree(value);

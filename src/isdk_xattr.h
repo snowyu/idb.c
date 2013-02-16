@@ -23,6 +23,7 @@
 #ifndef isdk_xattr__h
  #define isdk_xattr__h
 
+#include <stdbool.h>
 /*use the redis C dynamic strings library: sds.h*/
 #include "sds.h"
 
@@ -31,6 +32,28 @@
  {
  #endif
 
+/* 
+Xattr Error codes:
+The following errors may be returned by the system calls themselves. Additionally, the file system implementing the call may return any other errors it desires.
+[EFAULT]
+ 	 The attrnamespace and attrname arguments, or the memory range defined by data and nbytes point outside the process’s allocated address space.
+[ENAMETOOLONG]
+ 	 The attribute name was longer than EXTATTR_MAXNAMELEN.
+The extattr_get_fd, extattr_set_fd, extattr_delete_fd, and extattr_list_fd system calls may also fail if:
+[EBADF]
+ 	 The file descriptor referenced by fd was invalid.
+Additionally, the extattr_get_file, extattr_set_file, and extattr_delete_file calls may also fail due to the following errors:
+[ENOATTR]
+ 	 The requested attribute was not defined for this file.
+[ENOTDIR]
+ 	 A component of the path prefix is not a directory.
+[ENAMETOOLONG]
+ 	 A component of a pathname exceeded 255 characters, or an entire path name exceeded 1023 characters.
+[ENOENT]
+ 	 A component of the path name that must exist does not exist.
+[EACCES]
+ 	 Search permission is denied for a component of the path prefix.
+*/
 
 //the xattr low level functions:
 static ssize_t xattr_getxattr(const char *path, const char *name,
@@ -39,6 +62,7 @@ static ssize_t xattr_getxattr(const char *path, const char *name,
 static ssize_t xattr_setxattr(const char *path, const char *name,
                               void *value, ssize_t size, u_int32_t position,
                               int options);
+//If any of the calls are unsuccessful, the value -1 is returned and the global variable errno is set to indicate the error.
 static ssize_t xattr_removexattr(const char *path, const char *name,
                                  int options);
 static ssize_t xattr_listxattr(const char *path, char *namebuf,
@@ -52,11 +76,12 @@ static ssize_t xattr_flistxattr(int fd, char *namebuf, size_t size, int options)
 
 
 ssize_t ListXattr(const char *path, char *namebuf, size_t size);
-int IsXattrExists(const char* aFile, const char* aKey);
+bool IsXattrExists(const char* aFile, const char* aKey);
 sds GetXattr(const char* aFile, const char* aKey);
 //0: ok; others: errcode.
 ssize_t SetXattr(const char* aFile, const char* aKey, sds aValue);
-
+//0: ok; others: errcode.
+ssize_t DelXattr(const char* aFile, const char* aKey);
 
  #ifdef __cplusplus
  }
