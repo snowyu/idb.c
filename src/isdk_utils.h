@@ -26,6 +26,11 @@
  #include <stdbool.h>
  #include <stdio.h>
  #include <stdarg.h>
+ #ifdef __linux__
+  #define __USE_BSD 1
+  #include <sys/types.h>
+  #include <sys/stat.h>
+ #endif
  #include <fts.h>            /* Traverse a file hierarchy. */
 
  #include "zmalloc.h"
@@ -139,6 +144,7 @@ void warnx(const char *fmt, ...);
 
 typedef struct stat Stat;
 typedef int(*FTSWalkDirHandler)(int aCount,const FTSENT *aNode, void *aPtr);
+typedef ssize_t(*WalkDirHandler)(size_t aCount, const struct dirent *aItem, void *aUserPtr);
 
 /* Open named file without truncate or create safely */
 static int open_or_create_file(const char *file, int flags, mode_t perms);
@@ -189,7 +195,14 @@ dStringArray* FTSListDir(const char* aDir, const char* aPattern, int aOptions);
 //  * LIST_FILE(3Bit): list files in the aDir
 //  * LIST_SYMBOLIC(4Bit): list symbolic links in the aDir (MUST BE WITH LIST_DIR or LIST_FILE)
 //  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir (THE SAME ABOVE)
-size_t CountDir(const char* aDir, const char* aPattern, int aOptions);
+//  * LIST_HIDDEN_FILE(6Bit): list hidden files in the aDir
+//aCount: return max count of mached pathes
+//  * 0 means all matched pathes
+//Return:
+//  * -1 if failed, the error code in errno
+//  * or the count of matched dirs.
+ssize_t WalkDir(const char* aDir, const char* aPattern, int aOptions, size_t aSkipCount, size_t aCount, WalkDirHandler aProcessor, void *aUserPtr);
+ssize_t CountDir(const char* aDir, const char* aPattern, int aOptions);
 dStringArray* ListDir(const char* aDir, const char* aPattern, int aOptions, size_t aSkipCount, size_t aCount);
 
 

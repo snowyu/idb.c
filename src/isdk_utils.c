@@ -32,11 +32,6 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
-#ifdef __linux__
-  #define __USE_BSD 1
-  #include <sys/types.h>
-  #include <sys/stat.h>
-#endif
 #include <ctype.h>          /*isxdigit, isupper, tolower...*/
 #include <string.h>
 #include <stdbool.h>
@@ -299,7 +294,6 @@ static list* sdslistCreate()
 //  * LIST_FILE(3Bit): list files in the aDir
 //  * LIST_SYMBOLIC(4Bit): list symbolic links in the aDir
 //  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
-//  * LIST_HIDDEN_FILE(6Bit): list hidden files in the aDir
 //aProcessor: the processor for matched item
 //  if Processor return
 //    0 : continue walkthrough directory.
@@ -329,7 +323,7 @@ int FTSWalkDir(const char* aDir, const char* aPattern, int aOptions, FTSWalkDirH
             case FTS_DP: //A directory being visited in post-order.
                 if (BIT_CHECK(aOptions, LIST_DIR)) {
                     //printf("dir try: %s\n", node->fts_path);
-                    if (!aPattern || FNM_MATCHED(aPattern, node->fts_name)) {
+                    if (FNM_MATCHED(aPattern, node->fts_name)) {
                         if (aProcessor) {
                             vStopped = aProcessor(result, node, aPtr);
                             if (vStopped == WALK_ITEM_SKIP) continue;
@@ -456,81 +450,29 @@ dStringArray* FTSListDir(const char* aDir, const char* aPattern, int aOptions)
     return result;
 }
 
-size_t CountDir(const char* aDir, const char* aPattern, int aOptions)
-{
-    DIR *vDirHandler;
-    struct dirent *vItem;
-    vDirHandler = opendir(aDir);
-    size_t vTotal = 0;
-    if (vDirHandler) {
-        while (vItem = readdir(vDirHandler)) {
-            if (vItem->d_name[0] == '.') continue;
-            switch (vItem->d_type) {
-                case DT_DIR:
-                    if (BIT_CHECK(aOptions, LIST_DIR)) {
-                        if FNM_MATCHED(aPattern, vItem->d_name) {
-                            vTotal++;
+#define WALKDIR_PROCESS_ITEM if (FNM_MATCHED(aPattern, vItem->d_name)) {\
+                            if (aSkipCount != 0) {\
+                                aSkipCount--;\
+                                continue;\
+                            }\
+                            if (aProcessor) {\
+                                vStopped = aProcessor(vTotal, vItem, aUserPtr);\
+                                if (vStopped == WALK_ITEM_SKIP) continue;\
+                            }\
+                            vTotal++;\
                         }
-                    }
-                    break;
-                case DT_LNK:
-                    if (BIT_CHECK(aOptions, LIST_SYMBOLIC) || BIT_CHECK(aOptions, LIST_SYMBOLIC_NONE)) {
-                        struct stat st;
-                        sds vFileName = sdsnew(aDir);
-                        vFileName = sdsJoinPathLen(vFileName, vItem->d_name, vItem->d_namlen);
-                        int vErrno = stat(vFileName, &st);
-                        if (vErrno != 0) vErrno = errno;
-                        if (vErrno == 0 && BIT_CHECK(aOptions, LIST_SYMBOLIC)) {
-                            if (S_ISDIR(st.st_mode)) {
-                                if (BIT_CHECK(aOptions, LIST_DIR) && FNM_MATCHED(aPattern, vItem->d_name))
-                                    vTotal++;
-                            }
-                            else if (BIT_CHECK(aOptions, LIST_FILE) && FNM_MATCHED(aPattern, vItem->d_name)) {
-                                vTotal++;
-                            }
-                        } else if (vErrno == ENOENT && BIT_CHECK(aOptions, LIST_SYMBOLIC_NONE) && FNM_MATCHED(aPattern, vItem->d_name))
-                            vTotal++;
-                        sdsfree(vFileName);
-                    }
-                    break;
-                case DT_REG: //It's a file
-                    if (BIT_CHECK(aOptions, LIST_FILE)) {
-                        if FNM_MATCHED(aPattern, vItem->d_name) vTotal++;
-                    }
-                    break;
-            } //switch-end
-        } //while-end
-        closedir(vDirHandler);
-    }
-    return vTotal;
-}
 
-static inline bool _add2listdir(dStringArray* result, const char* aPattern, struct dirent *vItem)
+ssize_t WalkDir(const char* aDir, const char* aPattern, int aOptions, size_t aSkipCount, size_t aCount, WalkDirHandler aProcessor, void *aUserPtr)
 {
-    if FNM_MATCHED(aPattern, vItem->d_name) {
-        sds s = sdsnewlen(vItem->d_name, vItem->d_namlen);
-        darray_append(*result, s);
-        return true;
-    }
-    else
-        return false;
-}
-//return all if aCount = 0
-dStringArray* ListDir(const char* aDir, const char* aPattern, int aOptions, size_t aSkipCount, size_t aCount)
-{
+    ssize_t vTotal = 0;
     DIR *vDirHandler;
     struct dirent *vItem;
-    dStringArray* result = NULL;
     vDirHandler = opendir(aDir);
-    size_t vTotal = 0;
     bool vSHowHiddenFiles = BIT_CHECK(aOptions, LIST_HIDDEN_FILE);
     if (vDirHandler) {
-        result = dStringArray_new();
-        while (vItem = readdir(vDirHandler)) {
-            if (aSkipCount != 0) {
-                aSkipCount--;
-                continue;
-            }
+        int vStopped = 0;
+
+        while ((vItem = readdir(vDirHandler)) && (vStopped != WALK_ITEM_STOP)) {
             if (vSHowHiddenFiles) {
                 if (vItem->d_name == "." || vItem->d_name == "..") continue;
             }
@@ -541,7 +483,7 @@ dStringArray* ListDir(const char* aDir, const char* aPattern, int aOptions, size
             switch (vItem->d_type) {
                 case DT_DIR:
                     if (BIT_CHECK(aOptions, LIST_DIR)) {
-                        if (_add2listdir(result, aPattern, vItem)) vTotal++;
+                        WALKDIR_PROCESS_ITEM;
                     }
                     break;
                 case DT_LNK:
@@ -554,27 +496,54 @@ dStringArray* ListDir(const char* aDir, const char* aPattern, int aOptions, size
 
                         if (vErrno == 0 && BIT_CHECK(aOptions, LIST_SYMBOLIC)) {
                             if (S_ISDIR(st.st_mode)) {
-                                if (BIT_CHECK(aOptions, LIST_DIR) && _add2listdir(result, aPattern, vItem))
-                                    vTotal++;
+                                if (BIT_CHECK(aOptions, LIST_DIR)) {
+                                    WALKDIR_PROCESS_ITEM;
+                                }
                             }
-                            else if (BIT_CHECK(aOptions, LIST_FILE) && _add2listdir(result, aPattern, vItem)) {
-                                vTotal++;
+                            else if (BIT_CHECK(aOptions, LIST_FILE)) {
+                                WALKDIR_PROCESS_ITEM;
                             }
-                        } else if (vErrno == ENOENT && BIT_CHECK(aOptions, LIST_SYMBOLIC_NONE) && _add2listdir(result, aPattern, vItem))
-                            vTotal++;
+                        } else if (vErrno == ENOENT && BIT_CHECK(aOptions, LIST_SYMBOLIC_NONE)) {
+                            WALKDIR_PROCESS_ITEM;
+                        }
 
                         sdsfree(vFileName);
                     }
                     break;
                 case DT_REG: //It's a file
                     if (BIT_CHECK(aOptions, LIST_FILE)) {
-                        if (_add2listdir(result, aPattern, vItem)) vTotal++;
+                        WALKDIR_PROCESS_ITEM;
                     }
                     break;
             } //switch-end
             if (aCount && vTotal >= aCount) break;
         } //while-end
         closedir(vDirHandler);
+    } else
+        vTotal = -1;
+    return vTotal;
+}
+
+ssize_t CountDir(const char* aDir, const char* aPattern, int aOptions)
+{
+    return WalkDir(aDir, aPattern, aOptions, 0, 0, NULL, NULL);
+}
+
+static ssize_t WalkDir_ListDir_Processor(size_t aCount, const struct dirent *aItem, void *aList)
+{
+        sds s = sdsnewlen(aItem->d_name, aItem->d_namlen);
+        darray_append(*(dStringArray*)aList, s);
+        return WALK_ITEM_OK;
+}
+
+//return all if aCount = 0
+dStringArray* ListDir(const char* aDir, const char* aPattern, int aOptions, size_t aSkipCount, size_t aCount)
+{
+    dStringArray* result = dStringArray_new();
+    ssize_t vCount = WalkDir(aDir, aPattern, aOptions, aSkipCount, aCount, WalkDir_ListDir_Processor, result);
+    if (vCount == -1) {
+        dStringArray_free(result);
+        result = NULL;
     }
     return result;
 }
