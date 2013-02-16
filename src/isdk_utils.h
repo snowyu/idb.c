@@ -46,6 +46,7 @@
  #define LIST_FILE                  3  //list files in the aDir
  #define LIST_SYMBOLIC              4  //list symbolic links in the aDir
  #define LIST_SYMBOLIC_NONE         5  //list symbolic links with a non-existent target in the aDir
+ #define LIST_HIDDEN_FILE           6  //list hidden files in the aDir
 
  #define WALK_ITEM_OK               0
  #define WALK_ITEM_SKIP             1

@@ -299,6 +299,7 @@ static list* sdslistCreate()
 //  * LIST_FILE(3Bit): list files in the aDir
 //  * LIST_SYMBOLIC(4Bit): list symbolic links in the aDir
 //  * LIST_SYMBOLIC_NONE(5Bit): list symbolic links with a non-existent target in the aDir
+//  * LIST_HIDDEN_FILE(6Bit): list hidden files in the aDir
 //aProcessor: the processor for matched item
 //  if Processor return
 //    0 : continue walkthrough directory.
@@ -522,6 +523,7 @@ dStringArray* ListDir(const char* aDir, const char* aPattern, int aOptions, size
     dStringArray* result = NULL;
     vDirHandler = opendir(aDir);
     size_t vTotal = 0;
+    bool vSHowHiddenFiles = BIT_CHECK(aOptions, LIST_HIDDEN_FILE);
     if (vDirHandler) {
         result = dStringArray_new();
         while (vItem = readdir(vDirHandler)) {
@@ -529,7 +531,12 @@ dStringArray* ListDir(const char* aDir, const char* aPattern, int aOptions, size
                 aSkipCount--;
                 continue;
             }
-            if (vItem->d_name[0] == '.') continue;
+            if (vSHowHiddenFiles) {
+                if (vItem->d_name == "." || vItem->d_name == "..") continue;
+            }
+            else {
+                if (vItem->d_name[0] == '.') continue;
+            }
             //printf("%s type=%x\n", vItem->d_name, vItem->d_type);
             switch (vItem->d_type) {
                 case DT_DIR:
