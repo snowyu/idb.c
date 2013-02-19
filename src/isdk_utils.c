@@ -714,7 +714,7 @@ int main(void) {
         ForceDirectories("testFTSListDir/better", O_RWXRWXR_XPERMS);
         ForceDirectories("testFTSListDir/1234", O_RWXRWXR_XPERMS);
         symlink("better", "testFTSListDir/betterlink");
-        test_cond("DirectoryExists('testFTSListDir/betterlink') is true", DirectoryExists("testFTSListDir/betterlink") == 1);
+        test_cond("DirectoryExists('testFTSListDir/betterlink') is true", DirectoryExists("testFTSListDir/betterlink") == PATH_IS_DIR);
         int fd1 = open_or_create_file("testFTSListDir/atestfile", 0, O_RW_RW_R__PERMS);
         close(fd1);
         fd1 = open_or_create_file("testFTSListDir/12testfile.inc", 0, O_RW_RW_R__PERMS);
@@ -728,7 +728,7 @@ int main(void) {
                 !IsFileExistsInDir("testFTSListDir", "nosuchdir", 1 << LIST_DIR |  1 << LIST_SYMBOLIC));
         test_cond("IsFileExistsInDir('testFTSListDir', '.*.c', 1 << LIST_FILE | 1 << LIST_HIDDEN_FILE |  1 << LIST_SYMBOLIC)",
                 IsFileExistsInDir("testFTSListDir", ".*.c", 1 << LIST_FILE | 1 << LIST_HIDDEN_FILE |  1 << LIST_SYMBOLIC));
-        test_cond("DirectoryExists('testFTSListDir/nosuchfile') is false", DirectoryExists("testFTSListDir/nosuchfile") == 0);
+        test_cond("DirectoryExists('testFTSListDir/nosuchfile') is false", DirectoryExists("testFTSListDir/nosuchfile") == PATH_IS_NOT_EXISTS);
         test_cond("IsDirectory('testFTSListDir/good')==PATH_IS_DIR", IsDirectory("testFTSListDir/good") == PATH_IS_DIR);
         test_cond("IsDirectory('testFTSListDir/betterlink')==PATH_IS_SYM_DIR", IsDirectory("testFTSListDir/betterlink") == PATH_IS_SYM_DIR);
         test_cond("IsDirectory('testFTSListDir/afilelink')==PATH_IS_SYM_FILE", IsDirectory("testFTSListDir/afilelink") == PATH_IS_SYM_FILE);
@@ -885,16 +885,16 @@ int main(void) {
         }
         puts("----------------------------");
         test_cond("DeleteDir('testFTSListDir')", DeleteDir("testFTSListDir") == 0);
-        test_cond("DirectoryExists('testFTSListDir') is false", DirectoryExists("testFTSListDir") == 0);
+        test_cond("DirectoryExists('testFTSListDir') is false", DirectoryExists("testFTSListDir") == PATH_IS_NOT_EXISTS);
 
 
         ForceDirectories("testdir/good/better/best?", O_RWXRWXR_XPERMS);
-        test_cond("DirectoryExists('testdir/good/better/best?')", DirectoryExists("testdir/good/better/best?") == 1);
+        test_cond("DirectoryExists('testdir/good/better/best?')", DirectoryExists("testdir/good/better/best?") == PATH_IS_DIR);
         test_cond("MoveDir(\"testdir/good/better\", \"testdir/good/ok\")", MoveDir("testdir/good/better", "testdir/good/ok")==0);
-        test_cond("DirectoryExists('testdir/good/ok')", DirectoryExists("testdir/good/ok") == 1);
+        test_cond("DirectoryExists('testdir/good/ok')", DirectoryExists("testdir/good/ok") == PATH_IS_DIR);
         test_cond("IsDirectory('testdir/good/ok')", IsDirectory("testdir/good/ok") == PATH_IS_DIR);
         test_cond("DeleteDir('testdir')", DeleteDir("testdir") == 0);
-        test_cond("DirectoryExists('testdir')", DirectoryExists("testdir") == 0);
+        test_cond("DirectoryExists('testdir')", DirectoryExists("testdir") == PATH_IS_NOT_EXISTS);
         test_cond("IsDirectory('testdir')", IsDirectory("testdir") == PATH_IS_NOT_EXISTS);
         int fd = open_or_create_file("mytestfile", 0, O_RW_RW_R__PERMS);
         test_cond("open_or_create_file(mytestfile):open not exists file", fd != 0);
@@ -903,7 +903,7 @@ int main(void) {
         test_cond("open_or_create_file(mytestfile):open exists file", fd != 0);
         close(fd);
         test_cond("DeleteDir('mytestfile')", DeleteDir("mytestfile") == 0);
-        test_cond("DirectoryExists('mytestfile') is false", DirectoryExists("mytestfile") == 0);
+        test_cond("DirectoryExists('mytestfile') is false", DirectoryExists("mytestfile") == PATH_IS_NOT_EXISTS);
         test_cond("IsDirectory('mytestfile') is false", IsDirectory("mytestfile") == PATH_IS_NOT_EXISTS);
         char* s="testing encoding 'it' \"with\" path/haha/it and %& *?|<>.";
         char* r=UrlEncode(s, NULL);
