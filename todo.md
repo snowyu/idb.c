@@ -1,5 +1,9 @@
 # 2013-02-13
 
+Now, I must use utf-8 lib to split the string.
+
+    See idb_helper.c#_GetKeyDir
+
 
 
 # 2013-02-12
