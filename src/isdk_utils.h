@@ -58,11 +58,11 @@
  #define WALK_ITEM_STOP            -1
 
  // the IsDirectory result constants:
- #define PATH_IS_FILE       0
+ #define PATH_IS_FILE       -1
  #define PATH_IS_DIR        1
  #define PATH_IS_SYM_DIR    2    //is symlink dir
  #define PATH_IS_SYM_FILE   -999 //is symlink file
- #define PATH_IS_NOT_EXISTS -2
+ #define PATH_IS_NOT_EXISTS 0
 
  #ifdef __cplusplus
  extern "C"
@@ -210,7 +210,7 @@ bool IsFileExistsInDir(const char* aDir, const char* aPattern, int aOptions);
 
 
 //test the filename whether is a directory
-//return 0 = a file, 1 = a Dir, 2 = a symbolic dir, -999 = a symbolic file, -2 = Not Exists(ENOENT), < 0 others means error code.
+//return PATH_IS_FILE = a file, PATH_IS_DIR = a Dir, PATH_IS_SYM_DIR = a symbolic dir, PATH_IS_SYM_FILE = a symbolic file, PATH_IS_NOT_EXISTS = Not Exists, < 0 others means error code.
 //See Also: DirectoryExists
 int IsDirectory(const char* aFileName);
 
