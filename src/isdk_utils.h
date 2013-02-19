@@ -143,8 +143,9 @@ void warn(const char *fmt, ...);
 void warnx(const char *fmt, ...);
 
 typedef struct stat Stat;
+typedef struct dirent Dirent;
 typedef int(*FTSWalkDirHandler)(int aCount,const FTSENT *aNode, void *aPtr);
-typedef ssize_t(*WalkDirHandler)(size_t aCount, const struct dirent *aItem, void *aUserPtr);
+typedef ssize_t(*WalkDirHandler)(size_t aCount, const Dirent *aItem, void *aUserPtr);
 
 /* Open named file without truncate or create safely */
 static int open_or_create_file(const char *file, int flags, mode_t perms);
@@ -204,6 +205,8 @@ dStringArray* FTSListDir(const char* aDir, const char* aPattern, int aOptions);
 ssize_t WalkDir(const char* aDir, const char* aPattern, int aOptions, size_t aSkipCount, size_t aCount, WalkDirHandler aProcessor, void *aUserPtr);
 ssize_t CountDir(const char* aDir, const char* aPattern, int aOptions);
 dStringArray* ListDir(const char* aDir, const char* aPattern, int aOptions, size_t aSkipCount, size_t aCount);
+//whether is aPattern mached file in the aDir exists?
+bool IsFileExistsInDir(const char* aDir, const char* aPattern, int aOptions);
 
 
 //test the filename whether is a directory

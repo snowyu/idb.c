@@ -529,6 +529,13 @@ ssize_t CountDir(const char* aDir, const char* aPattern, int aOptions)
     return WalkDir(aDir, aPattern, aOptions, 0, 0, NULL, NULL);
 }
 
+//the mached file is exists or not?
+bool IsFileExistsInDir(const char* aDir, const char* aPattern, int aOptions)
+{
+    ssize_t vCount = WalkDir(aDir, aPattern, aOptions, 0, 1, NULL, NULL);
+    return vCount >= 1;
+}
+
 static ssize_t WalkDir_ListDir_Processor(size_t aCount, const struct dirent *aItem, void *aList)
 {
         sds s = sdsnewlen(aItem->d_name, aItem->d_namlen);
@@ -712,6 +719,13 @@ int main(void) {
         close(fd1);
         symlink("atestfile", "testFTSListDir/afilelink");
         symlink("brokenlink", "testFTSListDir/nosuchfile");
+        symlink("atestfile", "testFTSListDir/.atfilelink.c");
+        test_cond("IsFileExistsInDir('testFTSListDir', 'b*', 1 << LIST_DIR |  1 << LIST_SYMBOLIC)",
+                IsFileExistsInDir("testFTSListDir", "b*", 1 << LIST_DIR |  1 << LIST_SYMBOLIC));
+        test_cond("!IsFileExistsInDir('testFTSListDir', 'nosuchdir', 1 << LIST_DIR |  1 << LIST_SYMBOLIC)",
+                !IsFileExistsInDir("testFTSListDir", "nosuchdir", 1 << LIST_DIR |  1 << LIST_SYMBOLIC));
+        test_cond("IsFileExistsInDir('testFTSListDir', '.*.c', 1 << LIST_FILE | 1 << LIST_HIDDEN_FILE |  1 << LIST_SYMBOLIC)",
+                IsFileExistsInDir("testFTSListDir", ".*.c", 1 << LIST_FILE | 1 << LIST_HIDDEN_FILE |  1 << LIST_SYMBOLIC));
         test_cond("DirectoryExists('testFTSListDir/nosuchfile') is false", DirectoryExists("testFTSListDir/nosuchfile") == 0);
         test_cond("IsDirectory('testFTSListDir/good')==PATH_IS_DIR", IsDirectory("testFTSListDir/good") == PATH_IS_DIR);
         test_cond("IsDirectory('testFTSListDir/betterlink')==PATH_IS_SYM_DIR", IsDirectory("testFTSListDir/betterlink") == PATH_IS_SYM_DIR);
