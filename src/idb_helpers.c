@@ -25,7 +25,7 @@
 #include "config.h"
 #include <errno.h>
 #ifdef HAVE_UNISTD_H
-#include <unistd.h> //symlink
+#include <unistd.h> //symlink, unlink
 #endif /* HAVE_UNISTD_H */
 #include <string.h>
 #include <stdbool.h>
@@ -51,7 +51,15 @@ static inline sds _make_attr_file_name(const sds aDir, const sds aAttribute)
 }
 
 
-int IsDirValueExists(const sds aDir, const sds aAttribute)
+bool DelDirValue(const sds aDir, const sds aAttribute)
+{
+    sds vFile = _make_attr_file_name(aDir, aAttribute);
+    int result = unlink(vFile);
+    sdsfree(vFile);
+    return result == 0;
+}
+
+bool IsDirValueExists(const sds aDir, const sds aAttribute)
 {
     sds vFile = _make_attr_file_name(aDir, aAttribute);
     int result = DirectoryExists(vFile);
@@ -94,53 +102,24 @@ bool SetDirValue(const sds aDir, const sds aValue, const sds aAttribute)
     return result;
 }
 
-int iIsExists(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType){
-    int result = -1;
-    sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
-    if BIT_CHECK(aStoreType, STORE_IN_XATTR_BIT) {
-        sds s = sdsnew(XATTR_PREFIX);
-        if (aAttribute)
-            s = sdscatsds(s, aAttribute);
-        else
-            s = sdscat(s, IDB_VALUE_NAME);
-        result = IsXattrExists(vDir, s);
-        sdsfree(s);
+static inline sds GenerateXattrName(const sds aAttribute)
+{
+    sds s = sdsnew(XATTR_PREFIX);
+    if (aAttribute) {
+        sds v = aAttribute;
+        if (v[0] == IDB_ATTR_PREFIX_CHR) v++;
+        s = sdscatsds(s, v);
     }
-    if (result == -1 && BIT_CHECK(aStoreType, STORE_IN_FILE_BIT)) {
-        result = IsDirValueExists(vDir, aAttribute);
-    }
-    sdsfree(vDir);
-    return result;
-}
-
-sds iGet(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType){
-    sds result = NULL;
-    sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
-    if BIT_CHECK(aStoreType, STORE_IN_XATTR_BIT) {
-        sds s = sdsnew(XATTR_PREFIX);
-        if (aAttribute)
-            s = sdscatsds(s, aAttribute);
-        else
-            s = sdscat(s, IDB_VALUE_NAME);
-        result = GetXattr(vDir, s);
-        sdsfree(s);
-    }
-    if (!result && BIT_CHECK(aStoreType, STORE_IN_FILE_BIT)) {
-        result = GetDirValue(vDir, aAttribute);
-    }
-    sdsfree(vDir);
-    return result;
+    else
+        s = sdscat(s, IDB_VALUE_NAME+1); //skip the dot.
+    return s;
 }
 
 static inline int _iPut(const sds aDir, const sds aValue, const sds aAttribute, const int aStoreType)
 {
     int result = -2;
     if BIT_CHECK(aStoreType, STORE_IN_XATTR_BIT) {
-        sds s = sdsnew(XATTR_PREFIX);
-        if (aAttribute)
-            s = sdscatsds(s, aAttribute);
-        else
-            s = sdscat(s, IDB_VALUE_NAME);
+        sds s = GenerateXattrName(aAttribute);
         result = SetXattr(aDir, s, aValue);
         sdsfree(s);
     }
@@ -149,14 +128,96 @@ static inline int _iPut(const sds aDir, const sds aValue, const sds aAttribute, 
     }
     return result;
 }
+
 static inline size_t _iKeyCount(const sds aDir, const char* aPattern) {
     int vOpts = 1 << LIST_DIR | 1<< LIST_SYMBOLIC;
     size_t result = CountDir(aDir, aPattern, vOpts);
     return result;
 }
+static inline size_t _iAttrCount(const sds aDir, const char* aPattern) {
+    size_t result = CountDir(aDir, aPattern, LIST_ALL_FILES);
+    return result;
+}
+//this is a splited key dir?
+static inline bool _iIsKeyDir(const sds aDir, const sds aKey) {
+    sds vAttrPattern = sdsnew(".*.");
+    vAttrPattern = sdscatsds(vAttrPattern, aKey);
+    bool result = IsFileExistsInDir(aDir, vAttrPattern, LIST_ALL_FILES);
+    sdsfree(vAttrPattern);
+    return result;
+}
+static inline bool _DeleleAttr(const sds aDir, const sds aAttribute, const int aStoreType)
+{
+    int result = -1;
+    if BIT_CHECK(aStoreType, STORE_IN_XATTR_BIT) {
+        sds s = GenerateXattrName(aAttribute);
+        result = DelXattr(aDir, s);
+        if (result != 0) {
+            errno = result;
+            result = 0;
+        } else
+            result = true;
+        sdsfree(s);
+    }
+    if (result == -1 && BIT_CHECK(aStoreType, STORE_IN_FILE_BIT)) {
+        result = DelDirValue(aDir, aAttribute);
+    }
+    if (result == -1) {
+        result = 0;
+        errno = ENOEXEC;
+    }
+    return result;
+}
 
-//aMaxItemCount will be chaged to 0 if no necessary split dir.
-static sds _iAdjustItemDir(const sds aDir, int* aMaxItemCount)
+bool iDeleleAttr(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType)
+{
+    sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
+    bool result = _DeleleAttr(vDir, aAttribute, aStoreType);
+    sdsfree(vDir);
+    return result;
+}
+
+static bool _AttrIsExists(const sds aDir, const sds aAttribute, const int aStoreType)
+{
+    int result = -1;
+    errno = 0;
+    if BIT_CHECK(aStoreType, STORE_IN_XATTR_BIT) {
+        sds s = GenerateXattrName(aAttribute);
+        result = IsXattrExists(aDir, s);
+        sdsfree(s);
+    }
+    if (result == -1 && BIT_CHECK(aStoreType, STORE_IN_FILE_BIT)) {
+        result = IsDirValueExists(aDir, aAttribute);
+    }
+    if (result == -1) {
+        result = 0;
+        errno = ENOEXEC;
+    }
+    return result;
+}
+
+//get the splited key's attribute name
+//the real attr name is: .[aAttribute].[aSubKey]
+static inline sds GetAttrNameEx(const sds aAttribute, const char* aKey)
+{
+    sds vAttr = sdscatlen(aAttribute, IDB_ATTR_PREFIX, strlen(IDB_ATTR_PREFIX));
+    const char* s = strrchr(aKey, PATH_SEP); //find the subkey if any.
+    s = (s) ? s+1 : aKey;
+    vAttr = sdscat(vAttr, s);
+    return vAttr;
+}
+
+//test the splited key's attr is exists or not.
+static bool _AttrExIsExists(const sds aDir, const char* aKey, const sds aAttribute, const int aStoreType)
+{
+    sds vAttr = GetAttrNameEx(aAttribute, aKey);
+    bool result = _AttrIsExists(aDir, vAttr, aStoreType);
+    sdsfree(vAttr);
+    return result;
+}
+
+
+static sds _TryGetKeyDir(const sds aDir, int* aMaxItemCount)
 {
     char* s = strrchr(aDir, PATH_SEP);
     if (s != NULL) {
@@ -165,23 +226,31 @@ static sds _iAdjustItemDir(const sds aDir, int* aMaxItemCount)
         s = aDir;
     }
     const sds vKey = sdsnew(s);
+    sds vAttrPattern = sdsnew(".*.");
+    vAttrPattern = sdscatsds(vAttrPattern, vKey);
     s = vKey;
     sds vDir = aDir;
     ssize_t vKeySize = sdslen(vKey);
     sdsIncrLen(vDir, -vKeySize); //remove the key from dir.
     size_t vCount = _iKeyCount(vDir, NULL);
     if (vCount >= *aMaxItemCount) { //the dir is exceed the max count limits, so put the item into sub-dir
-        //split the key char by char.
-        // "human" = "dir/h" "human" = "dir/h/u" "human" = "dir/h/u/m" "human" = "dir/h/u/m/a" "human"
-        sds vUtf8Char = sdsnewlen(NULL, 8); //the maximum size of the utf-8 char is 6.
+        sds vUtf8Char = sdsnewlen(NULL, 8); //the maximum size of the utf-8 char is 6. but i need point to the int32.
         do {
             ssize_t vLen = utf8proc_iterate(s, vKeySize, (int32_t *)vUtf8Char);
             if (vLen > 0) {
                 //vUtf8Char = sdsSetlen(vUtf8Char, vLen);
                 vDir = sdsJoinPathLen(vDir, vUtf8Char, vLen);
-                vCount = _iKeyCount(vDir, NULL);
                 s += vLen;
                 vKeySize -= vLen;
+                //have any attributes for splited key exists?
+                // .*.[s]
+                sds vTempDir = sdsJoinPathLen(sdsdup(vDir), s, vKeySize);
+                if (IsFileExistsInDir(vTempDir, vAttrPattern, LIST_ALL_FILES)){
+                    sdsfree(vTempDir);
+                    break;
+                }
+                sdsfree(vTempDir);
+                vCount = _iKeyCount(vDir, NULL);
             } else {
                 errno = vLen;
                 switch (vLen) {
@@ -193,35 +262,71 @@ static sds _iAdjustItemDir(const sds aDir, int* aMaxItemCount)
                 sdsfree(vUtf8Char);
                 sdsfree(vKey);
                 sdsfree(aDir);
+                sdsfree(vAttrPattern);
                 return NULL;
             }
         } while(vCount >= *aMaxItemCount && vKeySize > 0);
         //vDir = sdsJoinPathLen(vDir, vKey, sdslen(vKey));
         vDir = sdsJoinPathLen(vDir, s, vKeySize);
+        sdsfree(vAttrPattern);
         sdsfree(vKey);
         sdsfree(vUtf8Char);
     }
     else {
-        vDir = sdsJoinPathLen(vDir, vKey, sdslen(vKey));
+        //vDir = sdsJoinPathLen(vDir, vKey, sdslen(vKey)); //restore the vDir value
         *aMaxItemCount = 0;
     }
 
     return vDir;
 }
+
+bool iIsExists(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType)
+{
+    sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
+    bool result = _AttrIsExists(vDir, aAttribute, aStoreType);
+    if (result == false && iDBMaxItemCount > 0) {
+        int vAdjusted = iDBMaxItemCount;
+        vDir = _TryGetKeyDir(vDir, &vAdjusted);
+        if (vDir == NULL) return false; //some error occur.
+        if (vAdjusted) {
+            sds vAttr = GetAttrNameEx(sdsdup(aAttribute), aKey);
+            result = _AttrIsExists(vDir, vAttr, aStoreType);
+            sdsfree(vAttr);
+        }
+    }
+    sdsfree(vDir);
+    return result;
+}
+
+sds iGet(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType){
+    sds result = NULL;
+    sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
+    if BIT_CHECK(aStoreType, STORE_IN_XATTR_BIT) {
+        sds s = GenerateXattrName(aAttribute);
+        result = GetXattr(vDir, s);
+        sdsfree(s);
+    }
+    if (!result && BIT_CHECK(aStoreType, STORE_IN_FILE_BIT)) {
+        result = GetDirValue(vDir, aAttribute);
+    }
+    sdsfree(vDir);
+    return result;
+}
+
 //result = 0 means ok, -2 means no operation, -1 means the same file name exists error, 
 int iPut(const sds aDir, const char* aKey, const int aKeyLen, const sds aValue, const sds aAttribute, const int aStoreType){
     sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
     int vAdjusted = 0;
-    if (iDBMaxItemCount > 0) {
+    if (aKey && iDBMaxItemCount > 0) {
         vAdjusted = iDBMaxItemCount;
-        vDir = _iAdjustItemDir(vDir, &vAdjusted);
+        vDir = _TryGetKeyDir(vDir, &vAdjusted);
         if (vDir == NULL) return errno;
     }
     int result = DirectoryExists(vDir);
     if (result == 0) { //Dir not Exists:
         ForceDirectories(vDir, O_RWXRWXR_XPERMS);
     }
-    else if (result == -1) {//File Exists Error:
+    else if (result == -1) {//File Already Exists Error:
         return result;
     }
     //if (result == 1) //Dir Exists:
@@ -229,26 +334,20 @@ int iPut(const sds aDir, const char* aKey, const int aKeyLen, const sds aValue, 
         result = _iPut(vDir, aValue, aAttribute, aStoreType);
     }
     else {
-        sds vNewAttr = sdscatlen(sdsdup(aAttribute), IDB_SPLIT_ATTR_POSTFIX, strlen(IDB_SPLIT_ATTR_POSTFIX));
-        result = _iPut(vDir, aValue, vNewAttr, aStoreType);
-        if (result == 0) {
-            vNewAttr = sdscpylen(vNewAttr, IDB_SPLIT_KEY_NAME, strlen(IDB_SPLIT_KEY_NAME));
-            sds vKey = sdsnewlen(aKey, aKeyLen);
-            result = _iPut(vDir, vKey, vNewAttr, aStoreType);
-            if (result != 0) {
-                vNewAttr = sdscatlen(sdsdup(aAttribute), IDB_SPLIT_ATTR_POSTFIX, strlen(IDB_SPLIT_ATTR_POSTFIX));
-                //TODO:
-                //_iDeleteAttr(vDir, vNewAttr, aStoreType);
-            }
-            sdsfree(vKey);
-        }
-        sdsfree(vNewAttr);
+        //the real attr name is: .[aAttribute].[aSubKey]
+        //GetAttrNameEx(const sds aAttribute, const char* aKey)
+        sds vAttr = GetAttrNameEx(sdsdup(aAttribute), aKey);
+        result = _iPut(vDir, aValue, vAttr, aStoreType);
+        sdsfree(vAttr);
     }
     
     sdsfree(vDir);
     return result;
 }
 
+//the delete will be more complex.
+//just delete the key's all attributes only.
+//only delete the dir if key's empty dir.
 int iDelete(const sds aDir, const char* aKey, const int aKeyLen){
     sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
     int result = DeleteDir(vDir) == 0;
@@ -342,6 +441,13 @@ long iGetCount(const sds aDir, const char* aKey, const int aKeyLen, const int aS
     return result;
 }
 
+//delete the key's all matched subkeys.
+//aPattern = NULL means all subkeys.
+//if sucessful return the deleted subkeys' count. or -1 return if failed.
+ssize_t iDeleteSubkeys(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern)
+{
+}
+
 size_t iSubkeyCount(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern)
 {
     sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
@@ -350,19 +456,6 @@ size_t iSubkeyCount(const sds aDir, const char* aKey, const int aKeyLen, const c
     return result;
 }
 
-/*
-struct _SubkeysRec {
-        dStringArray* result;
-        int skipCount;
-};
-
-static int process_matched_dir(int aCount, const FTSENT *aNode, void *aPtr){
-        sds s = sdsnew(aNode->fts_path);
-        struct _SubkeysRec* vSubkeys = aPtr;
-        darray_append(*(vSubkeys->result), s);
-        return WALK_ITEM_OK;
-}
-*/
 dStringArray* iSubkeys(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern, const int aSkipCount, const int aCount)
 {
     int vOpts = 1 << LIST_DIR | 1<< LIST_SYMBOLIC;
@@ -403,14 +496,15 @@ int main(int argc, char **argv)
     {
         ForceDirectories("testdir/good/better/best", O_RWXRWXR_XPERMS);
         test_cond("DirectoryExists('testdir/good/better/best')", DirectoryExists("testdir/good/better/best") == 1);
-        sds x = sdsnew("testdir"), key=sdsnew("mytestkey"), y = sdsnew("hi world"), xa_value_name=sdsnew(XATTR_PREFIX);
-        xa_value_name=sdscat(xa_value_name, IDB_VALUE_NAME);
+        sds x = sdsnew("testdir"), key=sdsnew("mytestkey"), y = sdsnew("hi world"), xa_value_name=GenerateXattrName(NULL);
         test_cond("SetDirValue('testdir', 'hi world')", SetDirValue(x, y, NULL));
         test_cond("IsDirValueExists(testdir, NULL)", IsDirValueExists(x, NULL));
         sds result = GetDirValue(x, NULL);
         test_cond("GetDirValue(testdir)",
                 result && sdslen(result) == 8 && memcmp(result, "hi world\0", 9) == 0
         );
+        test_cond("DelDirValue(testdir, NULL)", DelDirValue(x, NULL));
+        test_cond("!IsDirValueExists(testdir, NULL)", !IsDirValueExists(x, NULL));
         test_cond("iPut('testdir','mytestkey', 'hi world', STORE_IN_FILE)", iPut(x, key, sdslen(key), y, NULL, STORE_IN_FILE)==0);
         sds path=sdsnew("testdir/mytestkey");
         test_cond("IsDirValueExists(testdir/mytestkey, NULL)", IsDirValueExists(path, NULL));
@@ -425,9 +519,11 @@ int main(int argc, char **argv)
         test_cond("iGet(testdir, mytestkey, NULL, STORE_IN_FILE)",
                 result && sdslen(result) == 8 && memcmp(result, "hi world\0", 9) == 0
         );
-        test_cond("iDelete(testdir, mytestkey)", iDelete(x, key, sdslen(key)));
+        test_cond("iDeleteAttr(testdir, mytestkey, STORE_IN_FILE)", iDeleleAttr(x, key, strlen(key),NULL, STORE_IN_FILE));
         test_cond("IsDirValueExists(testdir/mytestkey, NULL) == false", !IsDirValueExists(path, NULL));
         test_cond("iIsExists(testdir, mytestkey) should not be exists.", !iIsExists(x, key, strlen(key), NULL, STORE_IN_FILE));
+        test_cond("iDelete(testdir, mytestkey)", iDelete(x, key, sdslen(key)));
+        test_cond("!DirectoryExists('testdir/mytestkey')", DirectoryExists("testdir/mytestkey") == 0);
 
         test_cond("iPut('testdir','mytestkey', 'hi world', STORE_IN_XATTR)", iPut(x, key, sdslen(key), y, NULL, STORE_IN_XATTR)==0);
         test_cond("IsDirValueExists(testdir/mytestkey, NULL)", !IsDirValueExists(path, NULL));
@@ -450,10 +546,10 @@ int main(int argc, char **argv)
         iPut(x, "myhi/fa/si", 10, y, NULL, STORE_IN_FILE);
         iPut(x, "mygoo", 5, y, NULL, STORE_IN_FILE);
         iPut(x, "bygoo", 5, y, NULL, STORE_IN_FILE);
-        sds adjustedDir= sdsJoinPathLen(sdsdup(x), "myhi/see/usme", 13);
+        sds adjustedDir= sdsJoinPathLen(sdsdup(x), "myhi/see/usmek", 14);
         int vAdjusted = 1;
-        adjustedDir= _iAdjustItemDir(adjustedDir, &vAdjusted);
-        test_cond("_iAdjustItemDir('my/hi/see/usme', 1)", strcmp(adjustedDir, "testdir/myhi/see/u/s/m/e") == 0);
+        adjustedDir= _TryGetKeyDir(adjustedDir, &vAdjusted);
+        test_cond("_TryGetKeyDir('my/hi/see/usmek', 1)", strcmp(adjustedDir, "testdir/myhi/see/u/s/m/ek") == 0);
         sdsfree(adjustedDir);
 
         test_cond("iSubkeyCount(x, '', 0, NULL)",iSubkeyCount(x, "", 0, NULL)==5);
@@ -492,9 +588,11 @@ int main(int argc, char **argv)
         iAlias(x, "myhi/see/u", 10, "myhi/fa/u", 11);
         test_cond("iAlias('myhi/see/u', 'myhi/fa/u')", IsDirectory("testdir/myhi/fa/u") == PATH_IS_SYM_DIR);
 
+        test_cond("iDeleteAttr(testdir, mytestkey, STORE_IN_XATTR)", iDeleleAttr(x, key, strlen(key),NULL, STORE_IN_XATTR));
+        test_cond("!IsXattrExists(testdir/mytestkey, IDB_VALUE_NAME)", !IsXattrExists(path, xa_value_name));
+        test_cond("!iIsExists(testdir, mytestkey, STORE_IN_XATTR)", !iIsExists(x, key, strlen(key), NULL, STORE_IN_XATTR));
         test_cond("iDelete(testdir, mytestkey)", iDelete(x, key, sdslen(key)));
-        test_cond("IsDirValueExists(testdir/mytestkey, NULL) == false", !IsDirValueExists(path, NULL));
-        test_cond("iIsExists(testdir, mytestkey) should not be exists.", !iIsExists(x, key, strlen(key), NULL, STORE_IN_FILE));
+        test_cond("!DirectoryExists('testdir/mytestkey')", DirectoryExists("testdir/mytestkey") == 0);
  
         sdsfree(path);
         sdsfree(x);

@@ -32,17 +32,23 @@
  #include "isdk_xattr.h"
  #include "isdk_utils.h"
 
- #define IDB_KEY_TYPE_NAME      ".type"
- #define IDB_VALUE_NAME         ".value"
- #define IDB_SPLIT_ATTR_POSTFIX ".me"                           //the attribute postfix for the split key.
- #define IDB_SPLIT_KEY_NAME     ".key"IDB_SPLIT_ATTR_POSTFIX   //store the key name in the file for the split key dir.
- #define XATTR_PREFIX           "user."
+ #define IDB_KEY_TYPE_NAME          ".type"
+ #define IDB_VALUE_NAME             ".value"
+ //#define IDB_SPLIT_ATTR_POSTFIX ".me"                           //the attribute postfix for the split key.
+ //#define IDB_SPLIT_KEY_NAME     ".key"IDB_SPLIT_ATTR_POSTFIX   //store the key name in the file for the split key dir.
+ #define XATTR_PREFIX               "user."
+ #define IDB_ATTR_PREFIX            "."
+ #define IDB_ATTR_PREFIX_CHR        ATTR_PREFIX[0]
+ #define IDB_PART_DIR_PREFIX        "."                       //the prefix of the split key partition dir.
+ #define IDB_PART_DIR_PREFIX_CHR    PART_DIR_PREFIX[0]
 
  //the store types:
  #define STORE_IN_FILE  1
  #define STORE_IN_XATTR 2
  #define STORE_IN_FILE_BIT  0 //the 0 bit
  #define STORE_IN_XATTR_BIT 1 //the 1 bit
+
+ #define LIST_ALL_FILES (LIST_FILE | 1<< LIST_SYMBOLIC | 1 << LIST_HIDDEN_FILE)
 
  #ifdef __cplusplus
  extern "C"
@@ -54,8 +60,8 @@
 
 
  //Low-Level functions
- //-1 means err, 0 means false, 1 means true.
- int IsDirValueExists(const sds aDir, const sds aAttribute);
+ bool DelDirValue(const sds aDir, const sds aAttribute);
+ bool IsDirValueExists(const sds aDir, const sds aAttribute);
  /* Get the value of the a Key(aDir) if successful, else return NULL
   * U must free the result after using it.
   */
@@ -65,9 +71,10 @@
 
  //the atrribute operations:
  //if aAttribute is NULL means the default attribute: .value
- int iIsExists(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType);
+ bool iIsExists(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType);
  sds iGet(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType);
  int iPut(const sds aDir, const char* aKey, const int aKeyLen, const sds aValue, const sds aAttribute, const int aStoreType);
+ bool iDeleleAttr(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType);
 //int symlink(const char *srcPath, const char *destPath); //make symbolic link(destPath) to a srcPath
 
  //the key operations:
