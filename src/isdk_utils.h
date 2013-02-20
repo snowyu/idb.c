@@ -33,13 +33,13 @@
  #endif
  #include <fts.h>            /* Traverse a file hierarchy. */
 
- #include "zmalloc.h"
- #include "sysstat.h"    /* mode_t for Windows - <sys/types.h> for POSIX */
+ #include "deps/zmalloc.h"
+ #include "deps/sysstat.h"    /* mode_t for Windows - <sys/types.h> for POSIX */
  /*use the redis C dynamic strings library: sds.h*/
- #include "sds.h"
- #include "darray.h"
- //#include "adlist.h"  //the double-link list
- #include "filename.h"
+ #include "deps/sds.h"
+ #include "deps/darray.h"
+ //#include "deps/adlist.h"  //the double-link list
+ #include "deps/filename.h"
 
  #define O_RW_RW_R__PERMS    (S_IWUSR|S_IRUSR|S_IWGRP|S_IRGRP|S_IROTH)
  #define O_RWXRWXR_XPERMS    (S_IWUSR|S_IXUSR|S_IRUSR|S_IWGRP|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH)
