@@ -25,7 +25,7 @@
 
 #include <stdbool.h>
 /*use the redis C dynamic strings library: sds.h*/
-#include "sds.h"
+#include "deps/sds.h"
 
  #ifdef __cplusplus
  extern "C"

@@ -22,17 +22,14 @@
 
 //xattr functions...
 
-#include "config.h"
+#include "deps/config.h"
 #include <errno.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 #include <string.h>
-#include "sysstat.h"    /* Fix up for Windows - inc mode_t */
+#include "deps/sysstat.h"    /* Fix up for Windows - inc mode_t */
 #include "isdk_xattr.h"
-
-/*use the redis C dynamic strings library: sds.h*/
-#include "sds.h"
 
 #ifdef __FreeBSD__
 #include <sys/extattr.h>
