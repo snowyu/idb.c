@@ -106,4 +106,16 @@ static inline sds sdsSetlen(const sds s, int len) {
     return result;
 }
 
+static inline sds sdsSetlen_(const sds s, int len) {
+    sds result = s;
+    struct sdshdr *sh = (void*)(s-(sizeof(struct sdshdr)));
+    if (len != sh->len && len <= (sh->free+sh->len)) {
+        //int incr = len - sh->len;
+        sh->free -= len - sh->len;
+        sh->len = len;
+        result[sh->len] = '\0';
+    }
+    return result;
+}
+
 #endif
