@@ -700,8 +700,16 @@ void test_list(dStringArray* result, dCStrArray expected) {
                     s = sdsnew(s1);
                     s = sdscat(s, darray_item(*result, i));
                     test_cond(s, strcmp(darray_item(*result, i), darray_item(expected, i))==0);
+                    sdsclear(s);
+                    s = sdscatprintf(s, "dCStrArray_indexOf('%s') == %d", darray_item(expected, i), i);
+                    test_cond(s, dCStrArray_indexOf(&expected, darray_item(expected, i)) == i);
+                    sdsclear(s);
+                    s = sdscatprintf(s, "dStringArray_indexOf('%s') == %d", darray_item(*result, i), i);
+                    test_cond(s, dStringArray_indexOf(result, darray_item(*result, i)) == i);
                     sdsfree(s);
             }
+            test_cond("dCStrArray_indexOf(arr, 'no such item in array') == -1", dCStrArray_indexOf(&expected, "no such item in array") == -1);
+            test_cond("dStringArray_indexOf(arr, 'no such item in array') == -1", dStringArray_indexOf(result, "no such item in array") == -1);
         } else {
             printf("expected Length is %lu, but it is %lu in fact.\n", darray_size(expected), darray_size(*result));
         }
