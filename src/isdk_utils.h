@@ -51,7 +51,10 @@
  #define LIST_FILE                  3  //list files in the aDir
  #define LIST_SYMBOLIC              4  //list symbolic links in the aDir
  #define LIST_SYMBOLIC_NONE         5  //list symbolic links with a non-existent target in the aDir
- #define LIST_HIDDEN_FILE           6  //list hidden files in the aDir
+ #define LIST_HIDDEN_FILE           6  //list hidden files(the file name start with ".") in the aDir.
+ #define LIST_NORMAL_FILE           7  //list noraml files(the file name do not start with ".") in the aDir.
+ #define LIST_DIRS                  (1 << LIST_DIR | 1 << LIST_NORMAL_FILE)
+ #define LIST_FILES                 (1 << LIST_FILE | 1 << LIST_NORMAL_FILE)
 
  #define WALK_ITEM_OK               0
  #define WALK_ITEM_SKIP             1
@@ -63,6 +66,8 @@
  #define PATH_IS_SYM_DIR    2    //is symlink dir
  #define PATH_IS_SYM_FILE   -999 //is symlink file
  #define PATH_IS_NOT_EXISTS 0
+
+ #define FNM_MATCHED(aPattern, aDir) (!aPattern || fnmatch(aPattern, aDir, FNM_PERIOD) == 0)
 
  #ifdef __cplusplus
  extern "C"
