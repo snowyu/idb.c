@@ -518,7 +518,7 @@ ssize_t WalkDir(const char* aDir, const char* aPattern, int aOptions, size_t aSk
                     }
                     break;
             } //switch-end
-            if (aCount && vTotal >= aCount) break;
+            if (aCount > 0 && vTotal >= aCount) break;
         } //while-end
         closedir(vDirHandler);
     } else
