@@ -55,6 +55,11 @@
  #define LIST_NORMAL_FILE           7  //list noraml files(the file name do not start with ".") in the aDir.
  #define LIST_DIRS                  (1 << LIST_DIR | 1 << LIST_NORMAL_FILE)
  #define LIST_FILES                 (1 << LIST_FILE | 1 << LIST_NORMAL_FILE)
+ #define LIST_NORMAL_FILES          (LIST_FILES | 1 << LIST_SYMBOLIC)
+ #define LIST_HIDDEN_FILES          (1 << LIST_FILE | 1 << LIST_HIDDEN_FILE | ! << LIST_SYMBOLIC)
+ #define LIST_NORMAL_DIRS           (LIST_DIRS | 1 << LIST_SYMBOLIC)
+ #define LIST_HIDDEN_DIRS           ( 1 << LIST_DIR | 1 << LIST_SYMBOLIC | 1 << LIST_HIDDEN_FILE)
+
 
  #define WALK_ITEM_OK               0
  #define WALK_ITEM_SKIP             1
