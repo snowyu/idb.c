@@ -28,7 +28,7 @@
  #include <stdarg.h>
 
  /*use the redis C dynamic strings library: sds.h*/
- #include "sds.h"
+ #include "deps/sds.h"
  #include "isdk_xattr.h"
  #include "isdk_utils.h"
 
@@ -38,9 +38,11 @@
  //#define IDB_SPLIT_KEY_NAME     ".key"IDB_SPLIT_ATTR_POSTFIX   //store the key name in the file for the split key dir.
  #define XATTR_PREFIX               "user."
  #define IDB_ATTR_PREFIX            "."
- #define IDB_ATTR_PREFIX_CHR        ATTR_PREFIX[0]
+ #define IDB_ATTR_PREFIX_CHR        IDB_ATTR_PREFIX[0]
  #define IDB_PART_DIR_PREFIX        "."                       //the prefix of the split key partition dir.
- #define IDB_PART_DIR_PREFIX_CHR    PART_DIR_PREFIX[0]
+ #define IDB_PART_DIR_PREFIX_CHR    IDB_PART_DIR_PREFIX[0]
+
+ #define IDB_ERR_PART_FULL          -100  //the iDB local partition is full.
 
  //the store types:
  #define STORE_IN_FILE  1
@@ -48,16 +50,25 @@
  #define STORE_IN_FILE_BIT  0 //the 0 bit
  #define STORE_IN_XATTR_BIT 1 //the 1 bit
 
- #define LIST_ALL_FILES (LIST_FILE | 1<< LIST_SYMBOLIC | 1 << LIST_HIDDEN_FILE)
+ #define LIST_ALL_FILES (LIST_FILES | 1<< LIST_SYMBOLIC | 1 << LIST_HIDDEN_FILE)
 
  #ifdef __cplusplus
  extern "C"
   {
  #endif
 
- //<=0 means no limit. the max iDB items count in the same dir.
- const int iDBMaxItemCount = -1;//45;
+ //dkIgnored: do not care of the duplication key, just ignore the left duplication keys.
+ //dkFixed: keep one, others remove the duplication key.
+ //dkReserved: Keep all the keys includes the illegal duplication keys(with the original partition key path)
+ typedef enum DuplicationKeyProcesses {dkIgnored, dkFixed, dkReserved} TDuplicationKeyProcess;
+ typedef ssize_t(*WalkKeyHandler)(size_t aCount, const char* aDir, const char *aKey, const char *aSubkeyPart, const void *aUserPtr);
 
+
+ //Global IDB Options:
+ //<=0 means no limit. the max iDB items count in the same dir(=MaxPageSize).
+ const int IDBMaxItemCount = -1;//45;
+ //howto process the duplication keys when list subkeys, see iSubkeys
+ const TDuplicationKeyProcess IDBDuplicationKeyProcess = dkIgnored;
 
  //Low-Level functions
  bool DelDirValue(const sds aDir, const sds aAttribute);
@@ -82,7 +93,7 @@
  //return: Upon successful completion, a zero value is returned.  else the error code returned.
  int iAlias(const sds aDir, const char* aKey, const int aKeyLen, const char* aAlias, const int aAliasLen);
  //delete the key includes the subkeys.
- int iDelete(const sds aDir, const char* aKey, const int aKeyLen);
+ bool iDelete(const sds aDir, const char* aKey, const int aKeyLen);
  //is the key exists?
  //-1 means err, 0 means false, 1 means true.
  static inline int iKeyExists(const sds aDir, const char* aKey, const int aKeyLen)
@@ -95,8 +106,10 @@
 
  //the subkey operations:
  //aPattern = NULL means match all subkeys
+ ssize_t iSubkeyWalk(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern,
+        size_t aSkipCount, size_t aCount, const WalkKeyHandler aProcessor, const void *aUserPtr);
  dStringArray* iSubkeys(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern, const int aSkipCount, const int aCount);
- size_t iSubkeyCount(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern);
+ ssize_t iSubkeyCount(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern);
 
  #ifdef __cplusplus
  }
