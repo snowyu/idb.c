@@ -177,7 +177,7 @@ void warnx(const char *fmt, ...);
 typedef struct stat Stat;
 typedef struct dirent Dirent;
 typedef int(*FTSWalkDirHandler)(int aCount,const FTSENT *aNode, void *aPtr);
-typedef ssize_t(*WalkDirHandler)(size_t aCount, const Dirent *aItem, void *aUserPtr);
+typedef ssize_t(*WalkDirHandler)(size_t aCount, const char *aDir, const Dirent *aItem, void *aUserPtr);
 
 /* Open named file without truncate or create safely */
 static int open_or_create_file(const char *file, int flags, mode_t perms);

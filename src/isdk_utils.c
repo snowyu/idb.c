@@ -455,7 +455,7 @@ dStringArray* FTSListDir(const char* aDir, const char* aPattern, int aOptions)
                                 continue;\
                             }\
                             if (aProcessor) {\
-                                vStopped = aProcessor(vTotal, vItem, aUserPtr);\
+                                vStopped = aProcessor(vTotal, aDir, vItem, aUserPtr);\
                                 if (vStopped == WALK_ITEM_SKIP) continue;\
                             }\
                             vTotal++;\
@@ -483,12 +483,13 @@ ssize_t WalkDir(const char* aDir, const char* aPattern, int aOptions, size_t aSk
             }
             //printf("%s type=%x\n", vItem->d_name, vItem->d_type);
             switch (vItem->d_type) {
-                case DT_DIR:
+                case DT_DIR: {
                     if (BIT_CHECK(aOptions, LIST_DIR)) {
                         WALKDIR_PROCESS_ITEM;
                     }
                     break;
-                case DT_LNK:
+                }
+                case DT_LNK: {
                     if (BIT_CHECK(aOptions, LIST_SYMBOLIC) || BIT_CHECK(aOptions, LIST_SYMBOLIC_NONE)) {
                         struct stat st;
                         sds vFileName = sdsnew(aDir);
@@ -512,11 +513,13 @@ ssize_t WalkDir(const char* aDir, const char* aPattern, int aOptions, size_t aSk
                         sdsfree(vFileName);
                     }
                     break;
-                case DT_REG: //It's a file
+                }
+                case DT_REG: {//It's a file
                     if (BIT_CHECK(aOptions, LIST_FILE)) {
                         WALKDIR_PROCESS_ITEM;
                     }
                     break;
+                }
             } //switch-end
             if (aCount > 0 && vTotal >= aCount) break;
         } //while-end
@@ -538,7 +541,7 @@ bool IsFileExistsInDir(const char* aDir, const char* aPattern, int aOptions)
     return vCount >= 1;
 }
 
-static ssize_t WalkDir_ListDir_Processor(size_t aCount, const struct dirent *aItem, void *aList)
+static ssize_t WalkDir_ListDir_Processor(size_t aCount, const char *aDir, const struct dirent *aItem, void *aList)
 {
         sds s = sdsnewlen(aItem->d_name, aItem->d_namlen);
         darray_append(*(dStringArray*)aList, s);
