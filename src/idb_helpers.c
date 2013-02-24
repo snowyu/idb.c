@@ -399,7 +399,7 @@ bool iIsExists(const sds aDir, const char* aKey, const int aKeyLen, const sds aA
 {
     sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
     bool result = _AttrIsExists(vDir, aAttribute, aStoreType);
-    if (result == false && IDBMaxItemCount > 0) {
+    if (result == false && IDBMaxPageCount > 0) {
         vDir = _IsKeyDirExists(vDir);
         result = (vDir != NULL);
         if (result) result = _AttrIsExists(vDir, aAttribute, aStoreType);
@@ -412,7 +412,7 @@ bool iIsExists(const sds aDir, const char* aKey, const int aKeyLen, const sds aA
 sds iGet(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType){
     sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
     sds result = _iGet(vDir, aAttribute, aStoreType);
-    if (result == NULL && IDBMaxItemCount > 0) {
+    if (result == NULL && IDBMaxPageCount > 0) {
         vDir = _IsKeyDirExists(vDir);
         if (vDir != NULL) result = _iGet(vDir, aAttribute, aStoreType);
     }
@@ -425,8 +425,8 @@ int iPut(const sds aDir, const char* aKey, const int aKeyLen, const sds aValue, 
 {
     sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
     int vAdjusted = 0;
-    if (aKey && IDBMaxItemCount > 0) {
-        vDir = _GetKeyDir(vDir, IDBMaxItemCount);
+    if (aKey && IDBMaxPageCount > 0) {
+        vDir = _GetKeyDir(vDir, IDBMaxPageCount);
         if (vDir == NULL) return errno;
     }
     int result = DirectoryExists(vDir);
@@ -446,7 +446,7 @@ bool iDeleleAttr(const sds aDir, const char* aKey, const int aKeyLen, const sds 
 {
     bool result = false;
     sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
-    if (DirectoryExists(vDir) != PATH_IS_DIR && IDBMaxItemCount > 0){
+    if (DirectoryExists(vDir) != PATH_IS_DIR && IDBMaxPageCount > 0){
         vDir = _IsKeyDirExists(vDir);
     }
     if (vDir) {
@@ -459,7 +459,7 @@ bool iDeleleAttr(const sds aDir, const char* aKey, const int aKeyLen, const sds 
 bool iDelete(const sds aDir, const char* aKey, const int aKeyLen){
     int result = false;
     sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
-    if (DirectoryExists(vDir) != PATH_IS_DIR && IDBMaxItemCount > 0){
+    if (DirectoryExists(vDir) != PATH_IS_DIR && IDBMaxPageCount > 0){
         vDir = _IsKeyDirExists(vDir);
     }
     if (vDir) {
@@ -800,7 +800,7 @@ int main(int argc, char **argv)
     {
         ForceDirectories("testdir/good/better/best", O_RWXRWXR_XPERMS);
         test_cond("DirectoryExists('testdir/good/better/best')", DirectoryExists("testdir/good/better/best") == PATH_IS_DIR);
-        IDBMaxItemCount = -1;
+        IDBMaxPageCount = -1;
         printf("Testing when Disable MaxPageSize:\n");
         printf("---------------------------------\n");
         sds x = sdsnew("testdir"), key=sdsnew("mytestkey"), y = sdsnew("hi world"), xa_value_name=GenerateXattrName(NULL);
@@ -908,7 +908,7 @@ int main(int argc, char **argv)
         test_cond("!iIsExists(testdir, mytestkey, STORE_IN_XATTR)", !iIsExists(x, key, strlen(key), NULL, STORE_IN_XATTR));
         test_cond("iDelete(testdir, mytestkey)", iDelete(x, key, sdslen(key)));
         test_cond("!DirectoryExists('testdir/mytestkey')", DirectoryExists("testdir/mytestkey") == PATH_IS_NOT_EXISTS);
-        IDBMaxItemCount = 3;
+        IDBMaxPageCount = 3;
         IDBDuplicationKeyProcess = dkIgnored;
         printf("-------------------------------------\n");
         printf("Testing when Enable MaxPageSize to 3:\n");

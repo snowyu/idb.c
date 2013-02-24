@@ -69,7 +69,7 @@
  //Global IDB Options:
  //<=0 means no limit. the max iDB items count in the same dir(=MaxPageSize).
  //Note: the MaxPageSize MUST greater than ASCII table count.
- int IDBMaxItemCount = -1;//256;
+ int IDBMaxPageCount = -1;//256;
  //howto process the duplication keys when list subkeys, see iSubkeys
  //dkIgnored: DO NOT add the duplication key into list.
  //dkFixed: remove the left duplication key.
