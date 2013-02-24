@@ -43,6 +43,7 @@
  #define IDB_PART_DIR_PREFIX_CHR    IDB_PART_DIR_PREFIX[0]
 
  #define IDB_ERR_PART_FULL          -100  //the iDB local partition is full.
+ #define IDB_OK                     0
 
  //the store types:
  #define STORE_IN_FILE  1
@@ -66,9 +67,10 @@
 
  //Global IDB Options:
  //<=0 means no limit. the max iDB items count in the same dir(=MaxPageSize).
- const int IDBMaxItemCount = -1;//45;
+ //Note: the MaxPageSize MUST greater than ASCII table count.
+ int IDBMaxItemCount = -1;//256;
  //howto process the duplication keys when list subkeys, see iSubkeys
- const TDuplicationKeyProcess IDBDuplicationKeyProcess = dkIgnored;
+ TDuplicationKeyProcess IDBDuplicationKeyProcess = dkIgnored;
 
  //Low-Level functions
  bool DelDirValue(const sds aDir, const sds aAttribute);
@@ -84,6 +86,7 @@
  //if aAttribute is NULL means the default attribute: .value
  bool iIsExists(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType);
  sds iGet(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType);
+ //result = 0 means ok, ENOEXEC means no operation, -1(PATH_IS_FILE) means the same file name exists error, 
  int iPut(const sds aDir, const char* aKey, const int aKeyLen, const sds aValue, const sds aAttribute, const int aStoreType);
  bool iDeleleAttr(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType);
 //int symlink(const char *srcPath, const char *destPath); //make symbolic link(destPath) to a srcPath
