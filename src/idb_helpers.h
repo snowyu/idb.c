@@ -43,6 +43,7 @@
  #define IDB_PART_DIR_PREFIX_CHR    IDB_PART_DIR_PREFIX[0]
 
  #define IDB_ERR_PART_FULL          -100  //the iDB local partition is full.
+ #define IDB_ERR_PART_DUP_KEY       -101  //the Duplication Key occur
  #define IDB_OK                     0
 
  //the store types:
@@ -61,7 +62,7 @@
  //dkIgnored: do not care of the duplication key, just ignore the left duplication keys.
  //dkFixed: keep one, others remove the duplication key.
  //dkReserved: Keep all the keys includes the illegal duplication keys(with the original partition key path)
- typedef enum DuplicationKeyProcesses {dkIgnored, dkFixed, dkReserved} TDuplicationKeyProcess;
+ typedef enum {dkIgnored, dkFixed, dkReserved, dkStopped} TIDBProcesses;
  typedef ssize_t(*WalkKeyHandler)(size_t aCount, const char* aDir, const char *aKey, const char *aSubkeyPart, const void *aUserPtr);
 
 
@@ -70,7 +71,15 @@
  //Note: the MaxPageSize MUST greater than ASCII table count.
  int IDBMaxItemCount = -1;//256;
  //howto process the duplication keys when list subkeys, see iSubkeys
- TDuplicationKeyProcess IDBDuplicationKeyProcess = dkIgnored;
+ //dkIgnored: DO NOT add the duplication key into list.
+ //dkFixed: remove the left duplication key.
+ //dkStopped: stopped and raise error.
+ //dkReserved: add the duplication key into list too.
+ TIDBProcesses IDBDuplicationKeyProcess = dkIgnored;
+ //the available process way when putting:
+ //dkIgnored: force to put the key in prev full dir.
+ //dkStopped: stopped and raise error.
+ TIDBProcesses IDBPartitionFullProcess  = dkIgnored;
 
  //Low-Level functions
  bool DelDirValue(const sds aDir, const sds aAttribute);
@@ -109,6 +118,7 @@
 
  //the subkey operations:
  //aPattern = NULL means match all subkeys
+ //return -1 means error, the errno is error code.
  ssize_t iSubkeyWalk(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern,
         size_t aSkipCount, size_t aCount, const WalkKeyHandler aProcessor, const void *aUserPtr);
  dStringArray* iSubkeys(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern, const int aSkipCount, const int aCount);

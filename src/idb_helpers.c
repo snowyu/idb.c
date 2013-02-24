@@ -256,17 +256,10 @@ static sds _GetKeyDir(const sds aDir, const int aMaxItemCount)
             ssize_t vLen = utf8proc_iterate(s, vKeySize, &vInt32Char);
             if (vLen > 0) {
                 vLen = utf8proc_encode_char(vInt32Char, vUtf8Char);
-                //sdsSetlen_(vUtf8Char, vLen);
-                //printf("%s(%x%x) Utf8Char(%s):%x%x%x, size=%ld\n", s, s[0],s[1], vUtf8Char, vUtf8Char[0],vUtf8Char[1], vUtf8Char[2], vLen);
+                sdsSetlen_(vUtf8Char, vLen);
                 s += vLen;
-                if (s == "") {
-                    errno = IDB_ERR_PART_FULL;
-                    sdsfree(vUtf8Char);
-                    sdsfree(vKey);
-                    sdsfree(vDir);
-                    return NULL;
-                }
                 vKeySize -= vLen;
+                if (vKeySize <= 0) break;
                 int vOldDirLen = sdslen(vDir);
                 vDir = sdsJoinPathLen(vDir, IDB_PART_DIR_PREFIX, strlen(IDB_PART_DIR_PREFIX));
                 vDir = sdscatlen(vDir, vUtf8Char, vLen);
@@ -290,7 +283,7 @@ static sds _GetKeyDir(const sds aDir, const int aMaxItemCount)
                 errno = vLen;
                 switch (vLen) {
                     case UTF8PROC_ERROR_INVALIDUTF8 :
-                        warnx("_iAdjustItemDir:%s UTF8PROC_ERROR_INVALIDUTF8", vKey);
+                        warnx("_GetKeyDir:%s UTF8PROC_ERROR_INVALIDUTF8", vKey);
                 }
                 sdsfree(vUtf8Char);
                 sdsfree(vKey);
@@ -298,15 +291,22 @@ static sds _GetKeyDir(const sds aDir, const int aMaxItemCount)
                 return NULL;
             }
         } while(vKeySize > 0);
+        if (vKeySize <= 0) {
+            if (IDBPartitionFullProcess == dkIgnored) {
+                vDir = sdsJoinPathLen(vDir, vUtf8Char, sdslen(vUtf8Char));
+            }
+            else 
+            if (IDBPartitionFullProcess == dkStopped) {
+                errno = IDB_ERR_PART_FULL;
+                sdsfree(vDir);
+                vDir = NULL;
+
+            }
+        }
         sdsfree(vUtf8Char);
     }
     if (vKeySize > 0) {
         vDir = sdsJoinPathLen(vDir, s, vKeySize);
-    }
-    else {
-        errno = IDB_ERR_PART_FULL;
-        sdsfree(vDir);
-        vDir = NULL;
     }
     sdsfree(vKey);
 
@@ -617,6 +617,8 @@ static ssize_t _SubkeyPartitionWalker(size_t aCount, sds aDir, const Dirent *aIt
             if (aRec->leftCount > 0 && vCount >= aRec->leftCount)
                 result = WALK_ITEM_STOP; //stop walk.
         }
+        else if (vCount < 0)
+            result = WALK_ITEM_ERROR;
     }
     return result;
 }
@@ -626,7 +628,7 @@ static ssize_t _iSubkeyWalk(const sds aDir, const char* aKey, const int aKeyLen,
     sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
     int vDirLen = sdslen(vDir);
     char vLastChar = vDir[vDirLen-1];
-    size_t result = WalkDir(vDir, aRec->pattern, LIST_NORMAL_DIRS, 0, aRec->leftCount, (WalkDirHandler) _SubkeyWalker, (void*) aRec);
+    ssize_t result = WalkDir(vDir, aRec->pattern, LIST_NORMAL_DIRS, 0, aRec->leftCount, (WalkDirHandler) _SubkeyWalker, (void*) aRec);
     if (result>=0 && (aRec->leftCount <=0 || result < aRec->leftCount)) {
         aRec->leftCount = aRec->leftCount - result;
         sds vSubkeyPart = sdsnewlen(NULL, 8);
@@ -646,15 +648,16 @@ static ssize_t _iSubkeyWalk(const sds aDir, const char* aKey, const int aKeyLen,
                 result += vCount;
             }
             else { //error occur. invalid utf8 string.
-                result = vLen;
-                //return vLen;
+                result = -1;
+                errno = vLen;
             }
         }
         else { //Walk through the Partition Keys
             TSubkeyWalkerRec vRec = *aRec;
             vRec.count = result;
-            WalkDir(vDir, NULL, LIST_HIDDEN_DIRS, 0, aRec->leftCount, (WalkDirHandler) _SubkeyPartitionWalker, (void*) &vRec);
-            result = vRec.count;
+            result = WalkDir(vDir, NULL, LIST_HIDDEN_DIRS, 0, aRec->leftCount, (WalkDirHandler) _SubkeyPartitionWalker, (void*) &vRec);
+            if (result >= 0)
+                result = vRec.count;
         }
         sdsfree(vSubkeyPart);
 
@@ -708,15 +711,22 @@ static ssize_t _iSubkeysWalker(size_t aCount, const char* aDir, const char* aKey
             break;
         }
         case dkIgnored:
+        case dkStopped:
         case dkFixed: {
             ssize_t i = dStringArray_indexOf(aSubkeys, (sds)aKey);
             if (i < 0) { ////Not Exists in aSubkeys
                 vItem = sdsnew(aKey);
-            } else if (IDBDuplicationKeyProcess == dkFixed) {
-                if (DeleteDir(aDir) != 0) { //remove duplication failed:
-                    warnx("Remove Duplication Key(%s): Delete \"%s\" Failed", aKey, aDir);
+            } else {
+                if (IDBDuplicationKeyProcess == dkFixed) {
+                    if (DeleteDir(aDir) != 0) { //remove duplication failed:
+                        warnx("Remove Duplication Key(%s): Delete \"%s\" Failed", aKey, aDir);
+                    }
+                    result = WALK_ITEM_SKIP;
                 }
-                result = WALK_ITEM_SKIP;
+                else if (IDBDuplicationKeyProcess == dkStopped) {
+                    errno = IDB_ERR_PART_DUP_KEY;
+                    result = WALK_ITEM_ERROR;
+                }
             }
             break;
         } //end dkFixed
@@ -731,7 +741,7 @@ dStringArray* iSubkeys(const sds aDir, const char* aKey, const int aKeyLen, cons
     dStringArray* result = dStringArray_new();
     ssize_t vCount = iSubkeyWalk(aDir, aKey, aKeyLen, aPattern, aSkipCount, aCount, (WalkKeyHandler) _iSubkeysWalker, result);
     if (vCount < 0) {
-        errno = vCount;
+        //errno = vCount;
         warnx("iSubkeys error:%ld", errno);
         dStringArray_free(result);
         result = NULL;
@@ -921,9 +931,22 @@ int main(int argc, char **argv)
         test_putKey(x, "c3", y, NULL, STORE_IN_FILE, IDB_OK);
         test_cond("!DirectoryExists('testdir/c3')", DirectoryExists("testdir/c3") == PATH_IS_NOT_EXISTS);
         test_cond("DirectoryExists('testdir/.c/3')", DirectoryExists("testdir/.c/3") == PATH_IS_DIR);
+        puts("-----------------------------------");
+        puts("Test raise partition full as error:");
+        puts("-----------------------------------");
+        IDBPartitionFullProcess = dkStopped;
         test_putKey(x, "c4", y, NULL, STORE_IN_FILE, IDB_ERR_PART_FULL);
         test_cond("!DirectoryExists('testdir/c4')", DirectoryExists("testdir/c4") == PATH_IS_NOT_EXISTS);
-        test_cond("!DirectoryExists('testdir/.c/.4')", DirectoryExists("testdir/.c/.4") == PATH_IS_NOT_EXISTS);
+        test_cond("!DirectoryExists('testdir/.c/4')", DirectoryExists("testdir/.c/4") == PATH_IS_NOT_EXISTS);
+        puts("----------------------------");
+        puts("Test Ignore partition full:");
+        puts("----------------------------");
+        IDBPartitionFullProcess = dkIgnored;
+        test_putKey(x, "c4", y, NULL, STORE_IN_FILE, IDB_OK);
+        test_cond("!DirectoryExists('testdir/c4')", DirectoryExists("testdir/c4") == PATH_IS_NOT_EXISTS);
+        test_cond("DirectoryExists('testdir/.c/4')", DirectoryExists("testdir/.c/4") == PATH_IS_DIR);
+        test_cond("iDelete(testdir, c4)", iDelete(x, "c4", 2));
+        puts("----------------------------");
         test_putKey(x, "cygo1", y, NULL, STORE_IN_FILE, IDB_OK);
         test_cond("!DirectoryExists('testdir/cygo1')", DirectoryExists("testdir/cygo1") == PATH_IS_NOT_EXISTS);
         test_cond("DirectoryExists('testdir/.c/.y/go1')", DirectoryExists("testdir/.c/.y/go1") == PATH_IS_DIR);
