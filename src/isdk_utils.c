@@ -472,7 +472,7 @@ ssize_t WalkDir(const char* aDir, const char* aPattern, int aOptions, size_t aSk
     if (vDirHandler) {
         int vStopped = 0;
 
-        while ((vItem = readdir(vDirHandler)) && (vStopped != WALK_ITEM_STOP)) {
+        while ((vItem = readdir(vDirHandler)) && (vStopped > WALK_ITEM_STOP)) {
             if (vSHowHiddenFiles) {
                 if (!vShowNormalFiles && vItem->d_name[0] != '.') continue;
                 if ((vItem->d_namlen == 1 && vItem->d_name[0] == '.')
@@ -524,6 +524,9 @@ ssize_t WalkDir(const char* aDir, const char* aPattern, int aOptions, size_t aSk
             if (aCount > 0 && vTotal >= aCount) break;
         } //while-end
         closedir(vDirHandler);
+        if (vStopped <= WALK_ITEM_ERROR) {
+            vTotal = -1;
+        }
     } else
         vTotal = -1;
     return vTotal;

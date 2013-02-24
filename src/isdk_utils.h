@@ -64,6 +64,7 @@
  #define WALK_ITEM_OK               0
  #define WALK_ITEM_SKIP             1
  #define WALK_ITEM_STOP            -1
+ #define WALK_ITEM_ERROR           -2  //u should put the error code into errno first.
 
  // the IsDirectory result constants:
  #define PATH_IS_FILE       -1
