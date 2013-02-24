@@ -32,6 +32,7 @@
 #define __SDS_H
 
 #define SDS_MAX_PREALLOC (1024*1024)
+#define SDSFreeAndNil(s) do {sdsfree(s); s = NULL;} while (0)
 
 #include <sys/types.h>
 #include <stdarg.h>
