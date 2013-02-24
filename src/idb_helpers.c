@@ -928,9 +928,17 @@ int main(int argc, char **argv)
         test_cond("!DirectoryExists('testdir/cygo1')", DirectoryExists("testdir/cygo1") == PATH_IS_NOT_EXISTS);
         test_cond("DirectoryExists('testdir/.c/.y/go1')", DirectoryExists("testdir/.c/.y/go1") == PATH_IS_DIR);
         test_putKey(x, "中国", y, NULL, STORE_IN_FILE, IDB_OK);
+        test_cond("!DirectoryExists('testdir/中国')", DirectoryExists("testdir/中国") == PATH_IS_NOT_EXISTS);
+        test_cond("DirectoryExists('testdir/.中/国')", DirectoryExists("testdir/.中/国") == PATH_IS_DIR);
         test_putKey(x, "中华", y, NULL, STORE_IN_FILE, IDB_OK);
+        test_cond("!DirectoryExists('testdir/中华')", DirectoryExists("testdir/中华") == PATH_IS_NOT_EXISTS);
+        test_cond("DirectoryExists('testdir/.中/华')", DirectoryExists("testdir/.中/华") == PATH_IS_DIR);
         test_putKey(x, "中间", y, NULL, STORE_IN_FILE, IDB_OK);
+        test_cond("!DirectoryExists('testdir/中间')", DirectoryExists("testdir/中间") == PATH_IS_NOT_EXISTS);
+        test_cond("DirectoryExists('testdir/.中/间')", DirectoryExists("testdir/.中/间") == PATH_IS_DIR);
         test_putKey(x, "中华人", y, NULL, STORE_IN_FILE, IDB_OK);
+        test_cond("!DirectoryExists('testdir/中华人')", DirectoryExists("testdir/中华人") == PATH_IS_NOT_EXISTS);
+        test_cond("DirectoryExists('testdir/.中/.华/人')", DirectoryExists("testdir/.中/.华/人") == PATH_IS_DIR);
         test_cond("iSubkeyCount(x, '', 0, NULL) == 11",iSubkeyCount(x, "", 0, NULL)==11);
         puts("----------------------------");
         puts("iSubkeys(x, \"\", 0, NULL, 0, 0)");
