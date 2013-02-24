@@ -101,6 +101,7 @@ bool SetDirValue(const sds aDir, const sds aValue, const sds aAttribute)
         if (vSize == sdslen(aValue)) result = true;
         close(fd);
     }
+    sdsfree(vFile);
     return result;
 }
 
@@ -977,6 +978,8 @@ int main(int argc, char **argv)
         sdsfree(path);
         sdsfree(x);
         sdsfree(y);
+        SDSFreeAndNil(key);
+        sdsfree(xa_value_name);
         if (result) SDSFreeAndNil(result);
         test_cond("DeleteDir(\"testdir\")", DeleteDir("testdir")==0);
         test_cond("DirectoryExists('testdir') should be not exists", DirectoryExists("testdir") == PATH_IS_NOT_EXISTS);
