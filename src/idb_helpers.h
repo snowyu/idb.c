@@ -65,6 +65,16 @@
  typedef enum {dkIgnored, dkFixed, dkReserved, dkStopped} TIDBProcesses;
  typedef ssize_t(*WalkKeyHandler)(size_t aCount, const char* aDir, const char *aKey, const char *aSubkeyPart, const void *aUserPtr);
 
+ struct __iDBBase {
+    char            *path;                  //the iDB item path.
+    size_t          maxPageSize;            //the max page count for the subkeys
+    int             storeType;
+    //bool            storeInXattr;           //enabled the xattr storage.
+    //bool            storeInFile;            //enabled the file storage.
+    TIDBProcesses   duplicationKeyProcess;
+    TIDBProcesses   partitionFullProcess;
+ };
+ typedef struct __iDBBase TIDBBase;
 
  //Global IDB Options:
  //<=0 means no limit. the max iDB items count in the same dir(=MaxPageSize).
