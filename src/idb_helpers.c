@@ -251,12 +251,10 @@ static sds _GetKeyDir(const sds aDir, const int aMaxItemCount)
     sdsIncrLen(vDir, -vKeySize);
     if (DirectoryExists(vDir) == PATH_IS_DIR && _iNormalKeyCount(vDir, NULL) >= aMaxItemCount) {
         sds vUtf8Char = sdsnewlen(NULL, 6); //the maximum size of the utf-8 char is 6.
-        int32_t vInt32Char;
         do {
             //vLen means character byte length.
-            ssize_t vLen = utf8proc_iterate(s, vKeySize, &vInt32Char);
+            ssize_t vLen = IterateUtf8Char(s, vKeySize, vUtf8Char);
             if (vLen > 0) {
-                vLen = utf8proc_encode_char(vInt32Char, vUtf8Char);
                 sdsSetlen_(vUtf8Char, vLen);
                 s += vLen;
                 vKeySize -= vLen;
@@ -349,13 +347,11 @@ static sds _IsKeyDirExists(const sds aDir)
     //remove the key from vDir.
     sdsIncrLen(vDir, -vKeySize);
     sds vUtf8Char = sdsnewlen(NULL, 6); //the maximum size of the utf-8 char is 6.
-    int32_t vInt32Char;
     do {
         //vLen means character byte length.
-        ssize_t vLen = utf8proc_iterate(s, vKeySize, &vInt32Char);
+        ssize_t vLen = IterateUtf8Char(s, vKeySize, vUtf8Char);
         if (vLen > 0)  {
-            vLen = utf8proc_encode_char(vInt32Char, vUtf8Char);
-             //vUtf8Char = sdsSetlen(vUtf8Char, vLen);
+            //vUtf8Char = sdsSetlen(vUtf8Char, vLen);
             vDir = sdsJoinPathLen(vDir, IDB_PART_DIR_PREFIX, strlen(IDB_PART_DIR_PREFIX));
             vDir = sdscatlen(vDir, vUtf8Char, vLen);
             if (DirectoryExists(vDir) == PATH_IS_DIR) {
@@ -637,10 +633,8 @@ static ssize_t _iSubkeyWalk(const sds aDir, const char* aKey, const int aKeyLen,
         if (aRec->pattern && aRec->pattern[0] != '\0' && aRec->pattern[0] != '*' && aRec->pattern[0] != '?') {
             sds vIndexKey = sdsnewlen(".", 1);
             vIndexKey = sdsMakeRoomFor(vIndexKey, 8);
-            int32_t vInt32Char;
-            int vLen = utf8proc_iterate(aRec->pattern, 6, &vInt32Char);
+            int vLen = IterateUtf8Char(aRec->pattern, 6, vIndexKey+1);
             if (vLen > 0) {
-                vLen = utf8proc_encode_char(vInt32Char, vIndexKey+1);
                 aRec->subkeyPart = sdscatlen(aRec->subkeyPart, aRec->pattern, vLen);
                 vIndexKey = sdscatlen(vIndexKey, aRec->pattern, vLen);
                 aRec->pattern += vLen;
@@ -849,13 +843,13 @@ int main(int argc, char **argv)
         );
         if (result) SDSFreeAndNil(result);
         //
-        iPut(x, "myhi/see/u", 10, y, NULL, STORE_IN_FILE);
-        iPut(x, "myhi/see/.u/s", 13, y, NULL, STORE_IN_FILE);
-        iPut(x, "myhi/see/.u/.s/c", 16, y, NULL, STORE_IN_FILE);
-        iPut(x, "myhi/see/d/uack", 15, y, NULL, STORE_IN_FILE);
-        iPut(x, "myhi/fa/si", 10, y, NULL, STORE_IN_FILE);
-        iPut(x, "mygoo", 5, y, NULL, STORE_IN_FILE);
-        iPut(x, "bygoo", 5, y, NULL, STORE_IN_FILE);
+        test_putKey(x, "myhi/see/u", y, NULL, STORE_IN_FILE, IDB_OK);
+        test_putKey(x, "myhi/see/.u/s", y, NULL, STORE_IN_FILE, IDB_OK);
+        test_putKey(x, "myhi/see/.u/.s/c", y, NULL, STORE_IN_FILE, IDB_OK);
+        test_putKey(x, "myhi/see/d/uack", y, NULL, STORE_IN_FILE, IDB_OK);
+        test_putKey(x, "myhi/fa/si", y, NULL, STORE_IN_FILE, IDB_OK);
+        test_putKey(x, "mygoo", y, NULL, STORE_IN_FILE, IDB_OK);
+        test_putKey(x, "bygoo", y, NULL, STORE_IN_FILE, IDB_OK);
         sds adjustedDir= sdsJoinPathLen(sdsdup(x), "myhi/see/usmek", 14);
         adjustedDir= _GetKeyDir(adjustedDir, 1);
         test_cond("_GetKeyDir('my/hi/see/usmek', 1)", strcmp(adjustedDir, "testdir/myhi/see/.u/.s/.m/ek") == 0);
