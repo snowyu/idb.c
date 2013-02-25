@@ -40,6 +40,7 @@
  #include "deps/darray.h"
  //#include "deps/adlist.h"  //the double-link list
  #include "deps/filename.h"
+ #include "deps/utf8proc.h"
 
  #define O_RW_RW_R__PERMS    (S_IWUSR|S_IRUSR|S_IWGRP|S_IRGRP|S_IROTH)
  #define O_RWXRWXR_XPERMS    (S_IWUSR|S_IXUSR|S_IRUSR|S_IWGRP|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH)
@@ -279,6 +280,17 @@ sds sdsJoinPathLen(const sds aPath, const void *aPath2, const size_t len);
 //only esacpe the '%' char and control-chars if aUnSafeChars is NULL 
 static char *UrlEncode(char *s, const char *aUnSafeChars);
 static int UrlDecode(char *vStr, int len);
+//return the utf8 char size if successful, or return < 0 means error code(see utf8proc)
+//sizeof(*aResult) MUST be greater than 6.
+static inline ssize_t IterateUtf8Char(const char* aUtf8Str, ssize_t aStrLen, char* aResult)
+{
+    int32_t vInt32Char;
+    ssize_t vLen = utf8proc_iterate(aUtf8Str, aStrLen, &vInt32Char);
+    if (vLen > 0) {
+        vLen = utf8proc_encode_char(vInt32Char, aResult);
+    }
+    return vLen;
+}
 
  #ifdef __cplusplus
  }
