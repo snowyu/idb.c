@@ -1,3 +1,7 @@
+内存泄露检查： 
+  valgrind  --track-origins=yes  --dsymutil=yes --leak-check=full --tool=memcheck ./test
+
+
 # 2013-02-13
 
 Now, I must use utf-8 lib to split the string.
