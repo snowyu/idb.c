@@ -260,6 +260,18 @@ sds sdscatprintf(sds s, const char *fmt, ...) {
     return t;
 }
 
+sds sdsprintf(sds s, const char *fmt, ...) {
+    struct sdshdr *sh = (void*) (s-(sizeof(struct sdshdr)));
+    sh->free += sh->len;
+    sh->len = 0;
+    va_list ap;
+    char *t;
+    va_start(ap, fmt);
+    t = sdscatvprintf(s,fmt,ap);
+    va_end(ap);
+    return t;
+}
+
 sds sdstrim(sds s, const char *cset) {
     struct sdshdr *sh = (void*) (s-(sizeof(struct sdshdr)));
     char *start, *end, *sp, *ep;

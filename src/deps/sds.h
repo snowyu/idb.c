@@ -73,8 +73,11 @@ sds sdscatvprintf(sds s, const char *fmt, va_list ap);
 #ifdef __GNUC__
 sds sdscatprintf(sds s, const char *fmt, ...)
     __attribute__((format(printf, 2, 3)));
+sds sdsprintf(sds s, const char *fmt, ...)
+    __attribute__((format(printf, 2, 3)));
 #else
 sds sdscatprintf(sds s, const char *fmt, ...);
+sds sdsprintf(sds s, const char *fmt, ...);
 #endif
 
 sds sdstrim(sds s, const char *cset);
