@@ -40,6 +40,21 @@
 
 #include "idb_helpers.h"
 
+ //Global IDB Options:
+ //<=0 means no limit. the max iDB items count in the same dir(=MaxPageSize).
+ //Note: the MaxPageSize MUST greater than ASCII table count.
+ int IDBMaxPageCount = -1;//256;
+ //howto process the duplication keys when list subkeys, see iSubkeys
+ //dkIgnored: DO NOT add the duplication key into list.
+ //dkFixed: remove the left duplication key.
+ //dkStopped: stopped and raise error.
+ //dkReserved: add the duplication key into list too.
+ TIDBProcesses IDBDuplicationKeyProcess = dkIgnored;
+ //the available process way when putting:
+ //dkIgnored: force to put the key in prev full dir.
+ //dkStopped: stopped and raise error.
+ TIDBProcesses IDBPartitionFullProcess  = dkIgnored;
+
 static inline sds _make_attr_file_name(const sds aDir, const sds aAttribute)
 {
     sds vFile = sdsdup(aDir);
