@@ -605,7 +605,7 @@ static ssize_t _SubkeyWalker(size_t aCount, const char *aDir, const Dirent *aIte
         }
         if (vHasSubkey) {
             vKey = sdsdup(aRec->subkeyPart);
-            vKey = sdscatlen(vKey, aItem->d_name, aItem->d_namlen);
+            vKey = sdscatlen(vKey, aItem->d_name, DIR_NAME_LEN(aItem));
         }
         if (aRec->processor) {
             const char* s = vKey ? vKey : aItem->d_name;
@@ -621,8 +621,8 @@ static ssize_t _SubkeyPartitionWalker(size_t aCount, sds aDir, const Dirent *aIt
     ssize_t result = WALK_ITEM_OK;
     if (aRec) {
         TSubkeyWalkerRec vRec = *aRec;
-        vRec.subkeyPart = sdscatlen(sdsdup(aRec->subkeyPart), aItem->d_name+1, aItem->d_namlen-1);
-        ssize_t vCount = _iSubkeyWalk(aDir, aItem->d_name, aItem->d_namlen, &vRec);
+        vRec.subkeyPart = sdscatlen(sdsdup(aRec->subkeyPart), aItem->d_name+1, DIR_NAME_LEN(aItem)-1);
+        ssize_t vCount = _iSubkeyWalk(aDir, aItem->d_name, DIR_NAME_LEN(aItem), &vRec);
         sdsfree(vRec.subkeyPart);
         if (vCount > 0) {
             aRec->count += vCount;

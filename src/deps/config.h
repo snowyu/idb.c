@@ -30,7 +30,19 @@
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
+//#ifdef __linux__
+//  #define __USE_BSD 1
+//  #include <sys/types.h>
+//  #include <sys/stat.h>
+//#endif
+#include "deps/sysstat.h"    /* mode_t for Windows - <sys/types.h> for POSIX */
 #include "kbit.h"
+
+#ifdef __HAVE_D_NAMLEN__
+  #define DIR_NAME_LEN(aDirent) (aDirent->d_namlen)
+#else
+  #define DIR_NAME_LEN(aDirent) (strlen(aDirent->d_name))
+#endif
 
 #define HAVE_UNISTD_H  1
 #define DREALLOC_FUNC zrealloc

@@ -475,8 +475,8 @@ ssize_t WalkDir(const char* aDir, const char* aPattern, int aOptions, size_t aSk
         while ((vItem = readdir(vDirHandler)) && (vStopped > WALK_ITEM_STOP)) {
             if (vSHowHiddenFiles) {
                 if (!vShowNormalFiles && vItem->d_name[0] != '.') continue;
-                if ((vItem->d_namlen == 1 && vItem->d_name[0] == '.')
-                        || (vItem->d_namlen == 2 && vItem->d_name[0] == '.' && vItem->d_name[1] == '.')) continue;
+                if ((DIR_NAME_LEN(vItem) == 1 && vItem->d_name[0] == '.')
+                        || (DIR_NAME_LEN(vItem) == 2 && vItem->d_name[0] == '.' && vItem->d_name[1] == '.')) continue;
             }
             else {
                 if (vItem->d_name[0] == '.') continue;
@@ -493,7 +493,7 @@ ssize_t WalkDir(const char* aDir, const char* aPattern, int aOptions, size_t aSk
                     if (BIT_CHECK(aOptions, LIST_SYMBOLIC) || BIT_CHECK(aOptions, LIST_SYMBOLIC_NONE)) {
                         struct stat st;
                         sds vFileName = sdsnew(aDir);
-                        vFileName = sdsJoinPathLen(vFileName, vItem->d_name, vItem->d_namlen);
+                        vFileName = sdsJoinPathLen(vFileName, vItem->d_name, DIR_NAME_LEN(vItem));
                         int vErrno = stat(vFileName, &st);
                         if (vErrno != 0) vErrno = errno;
 
@@ -546,7 +546,7 @@ bool IsFileExistsInDir(const char* aDir, const char* aPattern, int aOptions)
 
 static ssize_t WalkDir_ListDir_Processor(size_t aCount, const char *aDir, const struct dirent *aItem, void *aList)
 {
-        sds s = sdsnewlen(aItem->d_name, aItem->d_namlen);
+        sds s = sdsnewlen(aItem->d_name, DIR_NAME_LEN(aItem));
         darray_append(*(dStringArray*)aList, s);
         return WALK_ITEM_OK;
 }
