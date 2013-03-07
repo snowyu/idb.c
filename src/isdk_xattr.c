@@ -28,14 +28,14 @@
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 #include <string.h>
-#include "deps/sysstat.h"    /* Fix up for Windows - inc mode_t */
+//#include "deps/sysstat.h"    /* Fix up for Windows - inc mode_t */
 #include "isdk_xattr.h"
 
 #ifdef __FreeBSD__
 #include <sys/extattr.h>
 #elif defined(__SUN__) || defined(__sun__)
-#include <sys/types.h>
-#include <sys/stat.h>
+//#include <sys/types.h>
+//#include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <dirent.h>

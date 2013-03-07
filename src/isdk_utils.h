@@ -22,19 +22,13 @@
 
 #ifndef isdk_utils__h
  #define isdk_utils__h
-
+ #include "deps/config.h"
  #include <stdbool.h>
  #include <stdio.h>
  #include <stdarg.h>
- #ifdef __linux__
-  #define __USE_BSD 1
-  #include <sys/types.h>
-  #include <sys/stat.h>
- #endif
  #include <fts.h>            /* Traverse a file hierarchy. */
 
  #include "deps/zmalloc.h"
- #include "deps/sysstat.h"    /* mode_t for Windows - <sys/types.h> for POSIX */
  /*use the redis C dynamic strings library: sds.h*/
  #include "deps/sds.h"
  #include "deps/darray.h"
