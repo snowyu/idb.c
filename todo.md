@@ -1,6 +1,27 @@
 内存泄露检查： 
   valgrind  --track-origins=yes  --dsymutil=yes --leak-check=full --tool=memcheck ./test
 
+# 2013-03-08
+
+The math library must be linked in when building the executable. How to do this varies by
+environment, but in Linux/Unix, just add -lm to the command:
+
+    gcc --std=gnu99 -I. -Ideps -o benchmark benchmark.c idb_helpers.c isdk_xattr.c isdk_utils.c deps/sds.c deps/zmalloc.c deps/utf8proc.c -lm
+
+The functions in stdlib.h and stdio.h have implementations in libc.so (or .a static linking),
+which is linked into your executable by default (as if -lc were specified). GCC can be instructed
+to avoid this automatic link with the -nostdlib or -nodefaultlibs options.
+
+The math functions in math.h have implementations in libm.so (or .a for static linking), and libm
+is not linked in by default. There are hysterical raisins historical reasons for this libm/libc
+split, none of them very convincing.
+
+Interestingly, the C++ runtime libstdc++ requres libm, so if you compile a C++ program with GCC (g++),
+you will automatically get libm linked in.
+
+
+
+
 
 # 2013-02-13
 
