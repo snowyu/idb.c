@@ -114,6 +114,8 @@ int main(int argc, char **argv){
   srand(g_randseed);
   ebuf = getenv("IDBGFD");
   g_dbgfd = ebuf ? strToInt64x(ebuf) : UINT16_MAX;
+  ebuf = getenv("IDBPAGESIZE");
+  IDBMaxPageCount = ebuf ? strToInt64x(ebuf) : IDBMaxPageCount;
   if(argc < 2) usage();
   int rv = 0;
   if(!strcmp(argv[1], "write")){
@@ -140,7 +142,7 @@ static void usage(void){
   fprintf(stderr, "%s: Benchmark of the iDB database API\n", g_progname);
   fprintf(stderr, "\n");
   fprintf(stderr, "usage:\n");
-  fprintf(stderr, "U can set the ENV Variable RNDSEED\n");
+  fprintf(stderr, "U can set the ENV Variable RNDSEED and IDBPAGESIZE\n");
   fprintf(stderr, "  %s write [-rnd]"
           " path recordCount\n", g_progname);
   fprintf(stderr, "  %s read "
