@@ -264,8 +264,8 @@ static int runread(int argc, char **argv){
 
 /* perform write command */
 static int procwrite(const char *path, int rnum, bool rnd){
-  iprintf("<Writing Test>\n  seed=%u  path=%s  count=%d\n\n",
-          g_randseed, path, rnum);
+  iprintf("<Writing Test>\n  pagesize=%d seed=%u  path=%s  count=%d\n\n",
+          IDBMaxPageCount, g_randseed, path, rnum);
   bool err = false;
   double stime = now();
   TIDBBase vDB;
@@ -312,8 +312,8 @@ static int procwrite(const char *path, int rnum, bool rnd){
 
 /* perform read command */
 static int procread(const char *path, int rnum, bool rnd){
-  iprintf("<Reading Test>\n  seed=%u  path=%s  rnum=%d\n\n",
-          g_randseed, path, rnum);
+  iprintf("<Reading Test>\n  pagesize=%d  seed=%u  path=%s  rnum=%d\n\n",
+          IDBMaxPageCount, g_randseed, path, rnum);
   bool err = false;
   double stime = now();
   sds vKey = sdsnewlen(NULL, 8), vValue = sdsnewlen(NULL, 8);
