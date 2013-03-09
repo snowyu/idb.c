@@ -338,7 +338,7 @@ static int procread(const char *path, int rnum, bool rnd){
     }
   }
   double vRunTime = now() - stime;
-  iprintf("record number: %lu\n", iSubkeyCount(vPath, NULL, 0, NULL));
+  iprintf("record number: %lu\n", iSubkeyTotal(vPath, NULL, 0, NULL));
 //  iprintf("size: %llu\n", (unsigned long long)TIDBBasefsiz(tdb));
 //  sysprint();
   iprintf("time: %.3f\n", vRunTime);
