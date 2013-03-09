@@ -47,6 +47,11 @@
    ((aNumber & 0xff00000000000000ULL) >> 56) \
   )
 
+ #ifdef __cplusplus
+ extern "C"
+  {
+ #endif
+
 /* Get the larger value of two integers. */
 static inline long max(long a, long b){
   return (a > b) ? a : b;
@@ -81,5 +86,9 @@ static inline double randDoubleNd(double avg, double sd){
   assert(sd >= 0.0);
   return sqrt(-2.0 * log(randDouble())) * cos(2 * 3.141592653589793 * randDouble()) * sd + avg;
 }
+
+ #ifdef __cplusplus
+ }
+ #endif
 
 #endif

@@ -22,6 +22,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+ #ifdef __cplusplus
+ extern "C"
+ {
+ #endif
+
 /* Compare two strings with case insensitive evaluation.
  *
  * Return Value
@@ -70,5 +75,8 @@ int64_t strToInt64(const char *str);
  * */
 int64_t strToInt64x(const char *str);
 
+ #ifdef __cplusplus
+ }
+ #endif
 
 #endif
