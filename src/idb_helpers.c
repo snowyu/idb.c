@@ -250,20 +250,11 @@ static sds _GetKeyDir(const sds aDir, const int aMaxItemCount)
         return NULL;
     }
     */
-    //get the base name of the key(ONLY NAME, no path in it.)
-    char* s = strrchr(aDir, PATH_SEP);
-    if (s != NULL) {
-        s++;
-    } else {
-        s = aDir;
-    }
-    ssize_t vKeySize = strlen(s);
-    const sds vKey = sdsnewlen(s, vKeySize);
     errno = 0;
-    s = vKey;
+    const sds vKey = ExtractLastPathName(aDir);
+    ssize_t vKeySize = sdslen(vKey);
+    char *s = vKey;
     sds vDir = aDir;
-    //remove the key from vDir.
-    sdsIncrLen(vDir, -vKeySize);
     if (DirectoryExists(vDir) == PATH_IS_DIR && _iNormalKeyCount(vDir, NULL) >= aMaxItemCount) {
         sds vUtf8Char = sdsnewlen(NULL, 6); //the maximum size of the utf-8 char is 6.
         do {
@@ -296,11 +287,16 @@ static sds _GetKeyDir(const sds aDir, const int aMaxItemCount)
             } else {
                 errno = vLen;
                 switch (vLen) {
+                    case 0:
+                        errno = IDB_ERR_PART_FULL;
+                        warnx("_GetKeyDir: the partition is full at %s dir", vDir);
+                        break;
                     case UTF8PROC_ERROR_INVALIDUTF8 :
                         warnx("_GetKeyDir:%s UTF8PROC_ERROR_INVALIDUTF8", vKey);
+                        break;
                 }
                 sdsfree(vUtf8Char);
-                sdsfree(vKey);
+                if (vKey) sdsfree(vKey);
                 sdsfree(aDir);
                 return NULL;
             }
@@ -322,7 +318,7 @@ static sds _GetKeyDir(const sds aDir, const int aMaxItemCount)
     if (vKeySize > 0) {
         vDir = sdsJoinPathLen(vDir, s, vKeySize);
     }
-    sdsfree(vKey);
+    if (vKey) sdsfree(vKey);
 
     return vDir;
 }
@@ -347,20 +343,12 @@ static sds _GetKeyDir(const sds aDir, const int aMaxItemCount)
     //end;
 static sds _IsKeyDirExists(const sds aDir)
 {
-    //get the base name of the key(ONLY NAME, no path in it.)
-    char* s = strrchr(aDir, PATH_SEP);
-    if (s != NULL) {
-        s++;
-    } else {
-        s = aDir;
-    }
-    const sds vKey = sdsnew(s);
     errno = 0;
-    s = vKey;
+    const sds vKey = ExtractLastPathName(aDir);
+    if (vKey == NULL) return NULL;
+    char *s = vKey;
     sds vDir = aDir;
     ssize_t vKeySize = sdslen(vKey);
-    //remove the key from vDir.
-    sdsIncrLen(vDir, -vKeySize);
     sds vUtf8Char = sdsnewlen(NULL, 6); //the maximum size of the utf-8 char is 6.
     do {
         //vLen means character byte length.
@@ -442,7 +430,7 @@ int iPut(const sds aDir, const char* aKey, const int aKeyLen, const sds aValue, 
         if (vDir == NULL) return errno;
     }
     int result = DirectoryExists(vDir);
-    if (result == PATH_IS_NOT_EXISTS) { //Dir not Exists:
+    if (result == PATH_IS_NOT_EXISTS) { //Dir not Exists: it is a new key.
         ForceDirectories(vDir, O_RWXRWXR_XPERMS);
     }
     else if (result == PATH_IS_FILE) {//File Already Exists Error:
