@@ -324,6 +324,29 @@ static inline ssize_t IterateUtf8Char(const char* aUtf8Str, ssize_t aStrLen, cha
     return vLen;
 }
 
+static inline sds ExtractLastPathName(const sds aDir)
+{
+    ssize_t vLen = sdslen(aDir);
+    while (aDir[vLen-1] == PATH_SEP) {
+        vLen--;
+        sdsSetlen_(aDir, vLen);
+    }
+    char* s = strrchr(aDir, PATH_SEP);
+    if (s != NULL) {
+        s++;
+    } else {
+        s = aDir;
+    }
+    vLen = strlen(s);
+    sds vLastPath = NULL;
+    if (vLen > 0) {
+        vLastPath = sdsnewlen(s, vLen);
+        //remove the last part path name from aDir.
+        sdsIncrLen(aDir, -vLen);
+    }
+    return vLastPath;
+}
+
  #ifdef __cplusplus
  }
  #endif
