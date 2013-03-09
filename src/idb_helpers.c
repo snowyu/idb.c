@@ -700,7 +700,7 @@ ssize_t iSubkeyWalk(const sds aDir, const char* aKey, const int aKeyLen, const c
     return result;
 }
 
-ssize_t iSubkeyCount(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern)
+ssize_t iSubkeyTotal(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern)
 {
     sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
     ssize_t result = iSubkeyWalk(aDir, aKey, aKeyLen, aPattern, 0, 0, NULL, NULL);
@@ -870,7 +870,7 @@ int main(int argc, char **argv)
         test_cond("_GetKeyDir('my/hi/see/usmek', 1)", strcmp(adjustedDir, "testdir/myhi/see/.u/.s/.m/ek") == 0);
         sdsfree(adjustedDir);
 
-        test_cond("iSubkeyCount(x, '', 0, NULL) == 5",iSubkeyCount(x, "", 0, NULL)==5);
+        test_cond("iSubkeyTotal(x, '', 0, NULL) == 5",iSubkeyTotal(x, "", 0, NULL)==5);
         puts("----------------------------");
         puts("iSubkeys(x, \"\", 0, NULL, 0, 0)");
         puts("----------------------------");
@@ -972,7 +972,7 @@ int main(int argc, char **argv)
         test_putKey(x, "中华人", y, NULL, STORE_IN_FILE, IDB_OK);
         test_cond("!DirectoryExists('testdir/中华人')", DirectoryExists("testdir/中华人") == PATH_IS_NOT_EXISTS);
         test_cond("DirectoryExists('testdir/.中/.华/人')", DirectoryExists("testdir/.中/.华/人") == PATH_IS_DIR);
-        test_cond("iSubkeyCount(x, '', 0, NULL) == 11",iSubkeyCount(x, "", 0, NULL)==11);
+        test_cond("iSubkeyTotal(x, '', 0, NULL) == 11",iSubkeyTotal(x, "", 0, NULL)==11);
         puts("----------------------------");
         puts("iSubkeys(x, \"\", 0, NULL, 0, 0)");
         puts("----------------------------");

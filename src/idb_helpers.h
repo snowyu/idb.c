@@ -132,7 +132,7 @@
  ssize_t iSubkeyWalk(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern,
         size_t aSkipCount, size_t aCount, const WalkKeyHandler aProcessor, const void *aUserPtr);
  dStringArray* iSubkeys(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern, const int aSkipCount, const int aCount);
- ssize_t iSubkeyCount(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern);
+ ssize_t iSubkeyTotal(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern);
 
  #ifdef __cplusplus
  }
