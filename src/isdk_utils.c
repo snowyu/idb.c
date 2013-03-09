@@ -20,7 +20,7 @@
   THE SOFTWARE.
 */
 
-#include "config.h"
+#include "deps/config.h"
 //utility functions...
 #if __STDC_VERSION__ >= 199901L
 #define _XOPEN_SOURCE 600
@@ -168,12 +168,10 @@ sds sdsJoinPathLen(const sds aPath, const void *aPath2, const size_t len)
     }
     else {
         result = aPath;
-        if (len > 0) {
-            if (aPath[sdslen(aPath)-1] != PATH_SEP_STR[0])
-                result = sdscat(aPath, PATH_SEP_STR);
+        if (aPath[sdslen(aPath)-1] != PATH_SEP_STR[0])
+            result = sdscat(aPath, PATH_SEP_STR);
 
-            result = sdscatlen(result, aPath2, len);
-        }
+        if (len > 0) result = sdscatlen(result, aPath2, len);
     }
     //if (result && result[sdslen(result)-1] != PATH_SEP_STR[0])
     //    result = sdscat(result, PATH_SEP_STR);
@@ -471,18 +469,35 @@ ssize_t WalkDir(const char* aDir, const char* aPattern, int aOptions, size_t aSk
     bool vShowNormalFiles = BIT_CHECK(aOptions, LIST_NORMAL_FILE);
     if (vDirHandler) {
         int vStopped = 0;
+        int vItemNameLen;
+        sds vItemPath = sdsJoinPathLen(sdsnew(aDir), NULL, 0);
+        int vDirLen = sdslen(vItemPath);
+        int vItemType;
+        struct stat st;
 
         while ((vItem = readdir(vDirHandler)) && (vStopped > WALK_ITEM_STOP)) {
+            vItemNameLen = DIR_NAME_LEN(vItem);
             if (vSHowHiddenFiles) {
                 if (!vShowNormalFiles && vItem->d_name[0] != '.') continue;
-                if ((DIR_NAME_LEN(vItem) == 1 && vItem->d_name[0] == '.')
-                        || (DIR_NAME_LEN(vItem) == 2 && vItem->d_name[0] == '.' && vItem->d_name[1] == '.')) continue;
+                if ((vItemNameLen == 1 && vItem->d_name[0] == '.')
+                        || (vItemNameLen == 2 && vItem->d_name[0] == '.' && vItem->d_name[1] == '.')) continue;
             }
             else {
                 if (vItem->d_name[0] == '.') continue;
             }
+            vItemType = D_TYPE(vItem);
+            if (vItemType == DT_UNKNOWN) {
+                //The type is unknown. Only some filesystems have full support to return the type of the file, others might always return this value.
+                vItemPath = sdsSetlen_(vItemPath, vDirLen);
+                vItemPath = sdscatlen(vItemPath, vItem->d_name, vItemNameLen);
+                if (lstat(vItemPath, &st) != 0) {
+                    vStopped = WALK_ITEM_ERROR;
+                    break;
+                }
+                vItemType = IFTODT(st.st_mode);
+            }
             //printf("%s type=%x\n", vItem->d_name, vItem->d_type);
-            switch (vItem->d_type) {
+            switch (vItemType) {
                 case DT_DIR: {
                     if (BIT_CHECK(aOptions, LIST_DIR)) {
                         WALKDIR_PROCESS_ITEM;
@@ -491,10 +506,11 @@ ssize_t WalkDir(const char* aDir, const char* aPattern, int aOptions, size_t aSk
                 }
                 case DT_LNK: {
                     if (BIT_CHECK(aOptions, LIST_SYMBOLIC) || BIT_CHECK(aOptions, LIST_SYMBOLIC_NONE)) {
-                        struct stat st;
-                        sds vFileName = sdsnew(aDir);
-                        vFileName = sdsJoinPathLen(vFileName, vItem->d_name, DIR_NAME_LEN(vItem));
-                        int vErrno = stat(vFileName, &st);
+                        vItemPath = sdsSetlen_(vItemPath, vDirLen);
+                        vItemPath = sdscatlen(vItemPath, vItem->d_name, vItemNameLen);
+                        //sds vFileName = sdsnew(aDir);
+                        //vFileName = sdsJoinPathLen(vFileName, vItem->d_name, DIR_NAME_LEN(vItem));
+                        int vErrno = stat(vItemPath, &st);
                         if (vErrno != 0) vErrno = errno;
 
                         if (vErrno == 0 && BIT_CHECK(aOptions, LIST_SYMBOLIC)) {
@@ -510,7 +526,7 @@ ssize_t WalkDir(const char* aDir, const char* aPattern, int aOptions, size_t aSk
                             WALKDIR_PROCESS_ITEM;
                         }
 
-                        sdsfree(vFileName);
+                        //sdsfree(vFileName);
                     }
                     break;
                 }
@@ -523,6 +539,8 @@ ssize_t WalkDir(const char* aDir, const char* aPattern, int aOptions, size_t aSk
             } //switch-end
             if (aCount > 0 && vTotal >= aCount) break;
         } //while-end
+
+        sdsfree(vItemPath);
         closedir(vDirHandler);
         if (vStopped <= WALK_ITEM_ERROR) {
             vTotal = -1;

@@ -36,6 +36,44 @@
  #include "deps/filename.h"
  #include "deps/utf8proc.h"
 
+ #define HAVE_STRUCT_DIRENT_D_TYPE
+ #ifdef HAVE_STRUCT_DIRENT_D_TYPE
+ /* True if the type of the directory entry D is known.  */
+ # define DT_IS_KNOWN(d) ((d)->d_type != DT_UNKNOWN)
+ /* True if the type of the directory entry D must be T.  */
+ # define DT_MUST_BE(d, t) ((d)->d_type == (t))
+ # define D_TYPE(d) ((d)->d_type)
+ #else
+ # define DT_IS_KNOWN(d) false
+ # define DT_MUST_BE(d, t) false
+ # define D_TYPE(d) DT_UNKNOWN
+
+ # undef DT_UNKNOWN
+ # define DT_UNKNOWN 0
+
+ /* Any nonzero values will do here, so long as they're distinct.
+    Undef any existing macros out of the way.
+ # undef IFTODT
+ # undef DTTOIF
+ # define IFTODT(mode)    (((mode) & 0170000) >> 12)
+ # define DTTOIF(dirtype) ((dirtype) << 12)
+ # undef DT_BLK
+ # undef DT_CHR
+ # undef DT_DIR
+ # undef DT_FIFO
+ # undef DT_LNK
+ # undef DT_REG
+ # undef DT_SOCK
+ # define DT_BLK IFTODT(S_IFBLK)
+ # define DT_CHR IFTODT(S_IFCHR)
+ # define DT_DIR IFTODT(S_IFDIR)
+ # define DT_FIFO IFTODT(S_IFIFO)
+ # define DT_LNK IFTODT(S_IFLNK)
+ # define DT_REG IFTODT(S_IFREG)
+ # define DT_SOCK IFTODT(S_IFSOCK)
+ */
+ #endif
+
  #define O_RW_RW_R__PERMS    (S_IWUSR|S_IRUSR|S_IWGRP|S_IRGRP|S_IROTH)
  #define O_RWXRWXR_XPERMS    (S_IWUSR|S_IXUSR|S_IRUSR|S_IWGRP|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH)
  #define O_EXCL_CREAT        (O_EXCL|O_CREAT)
