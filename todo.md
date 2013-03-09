@@ -1,6 +1,150 @@
 内存泄露检查： 
   valgrind  --track-origins=yes  --dsymutil=yes --leak-check=full --tool=memcheck ./test
 
+
+## benchmark
+
+
+### On Ramdisk
+
+    ➜  src git:(master) ✗ ./benchmark write /dev/shm/mydb 100000<Writing Test>
+      seed=7788  path=/dev/shm/mydb  count=100000
+
+    record number: 100000
+    time: 5.319
+    ok
+
+    ➜  src git:(master) ✗ ./benchmark write /dev/shm/mydb 100000
+    <Writing Test>
+      seed=7788  path=/dev/shm/mydb  count=100000
+
+    record number: 100000
+    time: 3.203
+    ok
+
+    ➜  src git:(master) ✗ ./benchmark read /dev/shm/mydb 100000
+    <Reading Test>
+      seed=7788  path=/dev/shm/mydb  rnum=100000
+
+    record number: 100000
+    time: 1.702
+    ok
+
+    ➜  src git:(master) ✗ ./benchmark read /dev/shm/mydb 100000
+    <Reading Test>
+      seed=7788  path=/dev/shm/mydb  rnum=100000
+
+    record number: 100000
+    time: 1.589
+    ok
+
+### On ZFS
+
+    ➜  src git:(master) ✗ ./benchmark write /share/mydb 100000
+    <Writing Test>
+      seed=7788  path=/share/mydb  count=100000
+    record number: 100000
+    time: 131.356
+    ok
+    ➜  src git:(master) ✗ ./benchmark read /share/mydb 100000
+    <Reading Test>
+      seed=7788  path=/share/mydb  rnum=100000
+    record number: 0
+    time: 3.001
+    ok
+
+奇怪在ZFS下无法遍历目录？找到了这是bug，某些文件系统下，readdir
+无法返回正确的d_type,总是返回0。
+
+
+当新建一个后：
+
+    zfs create storage/share/test.idb
+
+    ➜  src git:(master) ✗ ./benchmark write /share/test.idb/mydb 10000
+    <Writing Test>
+      seed=7788  path=/share/test.idb/mydb  count=10000
+
+    record number: 10000
+    time: 2.835
+    ok
+    ➜  src git:(master) ✗ ./benchmark write /share/test.idb/mydb 10000
+    <Writing Test>
+      seed=7788  path=/share/test.idb/mydb  count=10000
+
+    record number: 10000
+    time: 1.760
+    ok
+    ➜  src git:(master) ✗ ./benchmark read /share/test.idb/mydb 10000
+    <Reading Test>
+      seed=7788  path=/share/test.idb/mydb  rnum=10000
+
+    record number: 0
+    time: 3.252
+    ok
+    ➜  src git:(master) ✗ ./benchmark read /share/test.idb/mydb 10000
+    <Reading Test>
+      seed=7788  path=/share/test.idb/mydb  rnum=10000
+
+    record number: 0
+    time: 0.298
+    ok
+    ➜  src git:(master) ✗ ./benchmark read /share/test.idb/mydb 10000
+    <Reading Test>
+      seed=7788  path=/share/test.idb/mydb  rnum=10000
+
+    record number: 0
+    time: 0.304
+    ok
+
+### On ext4
+
+    ./benchmark write /mnt/home/riceball/mydb 100000
+    <Writing Test>
+      seed=7788  path=/mnt/home/riceball/mydb  count=100000
+
+    record number: 100000
+    time: 31.869
+
+    ➜  src git:(master) ✗ ./benchmark read /mnt/home/riceball/mydb 100000
+    <Reading Test>
+      seed=7788  path=/mnt/home/riceball/mydb  rnum=100000
+    record number: 100002
+    time: 2.601
+    ok
+
+    ➜  src git:(master) ✗ ./benchmark write /mnt/home/riceball/test.idb 10000
+    <Writing Test>
+      seed=7788  path=/mnt/home/riceball/test.idb  count=10000
+
+    record number: 10000
+    time: 2.017
+    ok
+
+    ➜  src git:(master) ✗ ./benchmark write /mnt/home/riceball/test.idb 10000
+    <Writing Test>
+      seed=7788  path=/mnt/home/riceball/test.idb  count=10000
+
+    record number: 10000
+    time: 0.916
+    ok
+
+    ➜  src git:(master) ✗ ./benchmark read /mnt/home/riceball/test.idb 10000
+    <Reading Test>
+      seed=7788  path=/mnt/home/riceball/test.idb  rnum=10000
+
+    record number: 10000
+    time: 0.190
+    ok
+
+    ➜  src git:(master) ✗ ./benchmark read /mnt/home/riceball/test.idb 10000
+    <Reading Test>
+      seed=7788  path=/mnt/home/riceball/test.idb  rnum=10000
+
+    record number: 10000
+    time: 0.141
+    ok
+
 # 2013-03-08
 
 The math library must be linked in when building the executable. How to do this varies by
