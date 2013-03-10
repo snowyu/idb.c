@@ -103,22 +103,29 @@
 
  //the atrribute operations:
  //if aAttribute is NULL means the default attribute: .value
- bool iIsExists(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType);
- sds iGet(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType);
+ bool iIsExistsInFile(const sds aKeyPath, const sds aAttribute);
+ bool iIsExistsInXattr(const sds aKeyPath, const sds aAttribute);
+ bool iIsExists(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType); //deprecated
+ sds iGetInFile(const sds aKeyPath, const sds aAttribute);
+ sds iGetInXattr(const sds aKeyPath, const sds aAttribute);
+ sds iGet(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType); //deprecated
  //result = 0 means ok, ENOEXEC means no operation, -1(PATH_IS_FILE) means the same file name exists error, 
- int iPut(const sds aDir, const char* aKey, const int aKeyLen, const sds aValue, const sds aAttribute, const int aStoreType);
- bool iDeleleAttr(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType);
-//int symlink(const char *srcPath, const char *destPath); //make symbolic link(destPath) to a srcPath
+ int iPutInFile(const sds aKeyPath, const sds aValue, const sds aAttribute, const TIDBProcesses aPartitionFullProcess);
+ int iPutInXattr(const sds aKeyPath, const sds aValue, const sds aAttribute, const TIDBProcesses aPartitionFullProcess);
+ int iPut(const sds aDir, const char* aKey, const int aKeyLen, const sds aValue, const sds aAttribute, const int aStoreType); //deprecated
+ bool iDeleleInFile(const sds aKeyPath, const sds aAttribute);
+ bool iDeleleInXattr(const sds aKeyPath, const sds aAttribute);
+ bool iDelele(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType); //deprecated
 
  //the key operations:
  //Make a new aAlias of the aKey
  //return: Upon successful completion, a zero value is returned.  else the error code returned.
- int iAlias(const sds aDir, const char* aKey, const int aKeyLen, const char* aAlias, const int aAliasLen);
+ int iKeyAlias(const sds aDir, const char* aKey, const int aKeyLen, const char* aAliasPath, const int aAliasPathLen);
  //delete the key includes the subkeys.
- bool iDelete(const sds aDir, const char* aKey, const int aKeyLen);
+ bool iKeyDelete(const sds aDir, const char* aKey, const int aKeyLen);
  //is the key exists?
  //-1 means err, 0 means false, 1 means true.
- static inline int iKeyExists(const sds aDir, const char* aKey, const int aKeyLen)
+ static inline int iKeyIsExists(const sds aDir, const char* aKey, const int aKeyLen)
  {
      sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
      int result = DirectoryExists(vDir);
@@ -132,7 +139,14 @@
  ssize_t iSubkeyWalk(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern,
         size_t aSkipCount, size_t aCount, const WalkKeyHandler aProcessor, const void *aUserPtr);
  dStringArray* iSubkeys(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern, const int aSkipCount, const int aCount);
+ //all keys count(include partition).
  ssize_t iSubkeyTotal(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern);
+ //current normal keys count(no partition).
+ static inline size_t iSubkeyCount(const sds aKeyPath, const char* aPattern)
+ {
+    size_t result = CountDir(aKeyPath, aPattern, LIST_NORMAL_DIRS);
+    return result;
+ }
 
  #ifdef __cplusplus
  }
