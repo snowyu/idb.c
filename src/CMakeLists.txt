@@ -8,12 +8,6 @@ Include(CheckStructHasMember)
 CHECK_STRUCT_HAS_MEMBER("struct dirent" d_namlen dirent.h HAVE_STRUCT_DIRENT_D_NAMLEN)
 CHECK_STRUCT_HAS_MEMBER("struct dirent" d_type dirent.h HAVE_STRUCT_DIRENT_D_TYPE)
 
-IF(CMAKE_COMPILER_IS_GNUCC)
-    SET(GNUC 1)
-    SET(CMAKE_REQUIRED_FLAGS "-fms-extensions --std=c99")
-    ADD_DEFINITIONS("-fms-extensions --std=c99")
-ENDIF(CMAKE_COMPILER_IS_GNUCC)
-
 # - Check if given C source compiles and links into an executable
 # CHECK_C_SOURCE_COMPILES(<code> <var> [FAIL_REGEX <fail-regex>])
 #  <code>       - source code to try to compile, must define 'main'
@@ -61,5 +55,5 @@ SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 #make hello executable program (in windows would be hello.exe)
 #link_directories(${PROJECT_BINARY_DIR}/idb)
 ADD_EXECUTABLE(idb_benchmark benchmark.c)
-target_link_libraries(idb_benchmark idb)
+target_link_libraries(idb_benchmark idb m)
 

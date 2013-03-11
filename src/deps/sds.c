@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdint.h>
 #include <assert.h>
 #include "sds.h"
 #include "zmalloc.h"

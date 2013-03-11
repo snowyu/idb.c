@@ -13,6 +13,12 @@ This process created the file `CMakeCache.txt' and the directory `CMakeFiles'.
 Please delete them.")
 endif()
 
+IF(CMAKE_COMPILER_IS_GNUCC)
+    SET(GNUC 1)
+    SET(CMAKE_REQUIRED_FLAGS "-fms-extensions --std=gnu99")
+    ADD_DEFINITIONS("-fms-extensions --std=gnu99")
+ENDIF(CMAKE_COMPILER_IS_GNUCC)
+
 add_subdirectory(src)
 #add_subdirectory(bin)
 
