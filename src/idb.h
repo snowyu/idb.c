@@ -23,23 +23,18 @@
 #ifndef idb__h
  #define idb__h
 
+ #include "deps/config.h"
  #include <stdbool.h>
  #include <stdio.h>
  #include <stdarg.h>
 
  /*use the redis C dynamic strings library: sds.h*/
- #include "sds.h"
+ #include "deps/sds.h"
  #include "isdk_xattr.h"
  #include "isdk_utils.h"
 
- #include "config.h"
  #include "idb_helpers.h"
 
-#ifdef __GNUC__
-    #define _ANONYMOUS_STRUCT __extension__
-    #define __C89_NAMELESS __extension__
-    #define __C89_NAMELESSSTRUCTNAME
-#endif
 
 //the simple types:
 #define IDB_STR_TYPE        0x00

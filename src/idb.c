@@ -22,7 +22,7 @@
 
 //iDB helpers functions...
 
-#include "config.h"
+#include "idb.h"
 #include <errno.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -35,8 +35,8 @@
 #include <assert.h>
 //#include <dirname.h> /* last_component */
 
-#include "zmalloc.h"
-#include "idb.h"
+#include "deps/zmalloc.h"
+//#include "idb.h"
 
 
 //create a database object.
@@ -79,7 +79,7 @@ bool  iDB_Close(void *aDB){
     if (aDB && vDB->opened){
         vDB->opened = false;
         if (vDB->path) {
-            zfree(vDB->path);
+            sdsfree(vDB->path);
             vDB->path = NULL;
         }
         return true;
@@ -93,11 +93,53 @@ bool  iDB_Close(void *aDB){
 #ifdef IDB_TEST_MAIN
 #include "testhelp.h"
 
+typedef void* Pointer;
+typedef int Integer;
+
+#define DefineContainer(type, name) typedef type* D##name
+#define DefineArray(type) DefineContainer(type, type##Array)
+
+struct _ContainerHeader {
+    size_t len;
+    size_t free;
+    //Pointer buf[];
+    char* buf[];
+};
+#define ContainerHeaderSize sizeof(struct _ContainerHeader)
+
+static inline Pointer _DNewDup(void* init, size_t initlen)
+{
+    struct _ContainerHeader *h;
+    if (init) {
+        h = zmalloc(ContainerHeaderSize+initlen);
+    } else {
+        h = zcalloc(ContainerHeaderSize+initlen);
+    }
+    if (h == NULL) return NULL;
+    h->len = initlen;
+    h->free = 0;
+    if (initlen && init)
+        memcpy(h->buf, init, initlen);
+    return (Pointer)h->buf;
+
+}
+#define DNewDup(type, name) static inline type* DNew##type##nameDup(type* init, size_t initlen) {return (type*)_DNewDup(init, sizeof(type)*initlen);}
+#define DNew(type, name) static inline type* DNew##type##name(){return (type*) _DNewDup(NULL, 0);}
+
+DNew(Integer, Array);
+
+DefineArray(Integer);
+
 //Note: sds.* zmalloc.* config.h come from redis src
-//gcc --std=c99 -I. -Ideps  -o test -DHAVE_UNISTD_H -DIDB_TEST_MAIN idb.c idb_helpers.c isdk_xattr.c isdk_utils.c deps/sds.c deps/zmalloc.c deps/filename.c
+//gcc -fms-extensions --std=c99 -I. -Ideps -o test -DHAVE_UNISTD_H -DIDB_TEST_MAIN idb.c idb_helpers.c isdk_xattr.c isdk_utils.c deps/sds.c deps/zmalloc.c deps/filename.c deps/adlist.c
 int main(int argc, char **argv)
 {
     {
+        DIntegerArray my = DNewIntegerArray();
+
+        typedef void* Ptr;
+        Ptr a[] = {0xAA221111, 0xFFFF5678};
+        printf("%lx,%lx\n", (long)a[0], (long)a[1]);
         sds d= sdsnew("mylink");
         struct stat st;
         int result = IsDirectory(d);
