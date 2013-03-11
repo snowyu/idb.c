@@ -138,6 +138,7 @@
  //return -1 means error, the errno is error code.
  ssize_t iSubkeyWalk(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern,
         size_t aSkipCount, size_t aCount, const WalkKeyHandler aProcessor, const void *aUserPtr);
+ //return NULL means error.
  dStringArray* iSubkeys(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern, const int aSkipCount, const int aCount);
  //all keys count(include partition).
  ssize_t iSubkeyTotal(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern);
