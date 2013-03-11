@@ -30,6 +30,13 @@ src\        -- the iDB Database Engine Source.
   deps\     -- the third-party files for source
 
 
+Make it
+-------
+
+        cd build
+        cmake ..
+        make
+
 Usages
 ------
 
