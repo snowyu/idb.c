@@ -36,7 +36,7 @@
  #include "deps/filename.h"
  #include "deps/utf8proc.h"
 
- #define HAVE_STRUCT_DIRENT_D_TYPE
+ //#define HAVE_STRUCT_DIRENT_D_TYPE
  #ifdef HAVE_STRUCT_DIRENT_D_TYPE
  /* True if the type of the directory entry D is known.  */
  # define DT_IS_KNOWN(d) ((d)->d_type != DT_UNKNOWN)

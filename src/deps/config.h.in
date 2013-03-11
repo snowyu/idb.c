@@ -33,7 +33,8 @@
 #cmakedefine HAVE_UNISTD_H
 #cmakedefine GNUC
 #cmakedefine _ANONYMOUS_STRUCT
-#cmakedefine __HAVE_D_NAMLEN__
+#cmakedefine HAVE_STRUCT_DIRENT_D_NAMLEN
+#cmakedefine HAVE_STRUCT_DIRENT_D_TYPE
 
 //#ifdef __linux__
 //  #define __USE_BSD 1
@@ -43,7 +44,7 @@
 #include "sysstat.h"    /* mode_t for Windows - <sys/types.h> for POSIX */
 #include "kbit.h"
 
-#ifdef __HAVE_D_NAMLEN__
+#ifdef HAVE_STRUCT_DIRENT_D_NAMLEN
   #define DIR_NAME_LEN(aDirent) (aDirent->d_namlen)
 #else
   #define DIR_NAME_LEN(aDirent) (strlen(aDirent->d_name))
