@@ -127,7 +127,8 @@
 #define darray_free(arr) do {free((arr).item);darray_init(arr);} while(0)
 #define darray_free_all(arr) do {\
         if((arr).onFree) {\
-            for (int i = 0; i < (arr).size; i++) {\
+            int i; \
+            for (i = 0; i < (arr).size; i++) {\
                 if ((arr).item[i]) (arr).onFree((arr).item[i]); \
             } \
         }\

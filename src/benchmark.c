@@ -127,7 +127,8 @@ int main(int argc, char **argv){
   }
   if(rv != 0){
     printf("FAILED: RNDSEED=%u PID=%d", g_randseed, (int)getpid());
-    for(int i = 0; i < argc; i++){
+    int i;
+    for(i = 0; i < argc; i++){
       printf(" %s", argv[i]);
     }
     printf("\n\n");
@@ -186,7 +187,8 @@ static int runwrite(int argc, char **argv){
   int iflags = 0;
   int omode = 0;
   bool rnd = false;
-  for(int i = 2; i < argc; i++){
+  int i;
+  for(i = 2; i < argc; i++){
     if(!path && argv[i][0] == '-'){
       if(!strcmp(argv[i], "-mt")){
         mt = true;
@@ -223,7 +225,8 @@ static int runread(int argc, char **argv){
   int dfunit = 0;
   int omode = 0;
   bool rnd = false;
-  for(int i = 2; i < argc; i++){
+  int i;
+  for(i = 2; i < argc; i++){
     if(!path && argv[i][0] == '-'){
       if(!strcmp(argv[i], "-mt")){
         mt = true;
@@ -272,7 +275,8 @@ static int procwrite(const char *path, int rnum, bool rnd){
   //vDB.path = path;
   sds vKey = sdsnewlen(NULL, 8), vValue = sdsnewlen(NULL, 8);
   sds vPath = sdsnew(path);
-  for(int i = 1; i <= rnum; i++){
+  int i;
+  for(i = 1; i <= rnum; i++){
       int id = (rnd) ? myrand(rnum) + 1 : i;
       //sdsclear(vKey);
       //sdsclear(vValue);
@@ -318,7 +322,8 @@ static int procread(const char *path, int rnum, bool rnd){
   double stime = now();
   sds vKey = sdsnewlen(NULL, 8), vValue = sdsnewlen(NULL, 8);
   sds vPath = sdsnew(path);
-  for(int i = 1; i <= rnum; i++){
+  int i;
+  for(i = 1; i <= rnum; i++){
     int id = (rnd) ? myrand(rnum) + 1 : i;
     vKey = sdsprintf(vKey, "%d", id);
     //vValue = sdsprintf(vValue, "%.8f", (myrand(i * 100) + 1) / 100.0);

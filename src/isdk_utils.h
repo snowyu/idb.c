@@ -141,7 +141,8 @@ static inline void dStringArray_free(dStringArray* arr) {
 }
 static inline ssize_t dStringArray_indexOf(const dStringArray* arr, sds str) {
     ssize_t result = -1;
-    for (int i = 0; i < (*arr).size; i++) {
+    int i;
+    for (i = 0; i < (*arr).size; i++) {
         if ((*arr).item[i]) {
             if (strcmp((*arr).item[i], str) == 0) {
                 result = i;
@@ -153,7 +154,8 @@ static inline ssize_t dStringArray_indexOf(const dStringArray* arr, sds str) {
 }
 static inline ssize_t dCStrArray_indexOf(const dCStrArray* arr, const char* str) {
     ssize_t result = -1;
-    for (int i = 0; i < (*arr).size; i++) {
+    int i;
+    for (i = 0; i < (*arr).size; i++) {
         if ((*arr).item[i]) {
             if (strcmp((*arr).item[i], str) == 0) {
                 result = i;
