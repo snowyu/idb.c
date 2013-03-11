@@ -319,9 +319,9 @@ static int UrlDecode(char *vStr, int len);
 static inline ssize_t IterateUtf8Char(const char* aUtf8Str, ssize_t aStrLen, char* aResult)
 {
     int32_t vInt32Char;
-    ssize_t vLen = utf8proc_iterate(aUtf8Str, aStrLen, &vInt32Char);
+    ssize_t vLen = utf8proc_iterate((const uint8_t *)aUtf8Str, aStrLen, &vInt32Char);
     if (vLen > 0) {
-        vLen = utf8proc_encode_char(vInt32Char, aResult);
+        vLen = utf8proc_encode_char(vInt32Char, (uint8_t *)aResult);
     }
     return vLen;
 }
