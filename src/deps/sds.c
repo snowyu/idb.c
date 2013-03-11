@@ -61,8 +61,8 @@ sds sdsnewlen(const void *init, size_t initlen) {
     }
     if (initlen && init) {
         memcpy(sh->buf, init, initlen);
-        sh->buf[initlen] = '\0';
     }
+    sh->buf[sh->len] = '\0';
     return (char*)sh->buf;
 }
 
@@ -659,9 +659,19 @@ int main(void) {
             sdslen(x) == 3 && memcmp(x,"foo\0",4) == 0)
 
         sdsfree(x);
+        x = sdsempty();
+        test_cond("sdsempty() should be strlen 0",
+            strlen(x) == 0 && sdslen(x) == 0 && memcmp(x,"\0",1) == 0);
+
+        sdsfree(x);
+        x = sdsnewlen(NULL, 2);
+        test_cond("Create a empty string with specified length",
+            sdslen(x) == 0 && sdsavail(x) == 2);
+
+        sdsfree(x);
         x = sdsnewlen("foo",2);
         test_cond("Create a string with specified length",
-            sdslen(x) == 2 && memcmp(x,"fo\0",3) == 0)
+            sdslen(x) == 2 && memcmp(x,"fo\0",3) == 0);
 
         x = sdscat(x,"bar");
         test_cond("Strings concatenation",
