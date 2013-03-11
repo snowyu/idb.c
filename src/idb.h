@@ -23,7 +23,7 @@
 #ifndef idb__h
  #define idb__h
 
- #include "deps/config.h"
+ #include "isdk_config.h"
  #include <stdbool.h>
  #include <stdio.h>
  #include <stdarg.h>

@@ -27,7 +27,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "config.h"
+#include "isdk_config.h"
 
 /*
  * SYNOPSIS

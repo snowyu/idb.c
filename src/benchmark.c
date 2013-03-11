@@ -9,7 +9,7 @@ Interestingly, the C++ runtime libstdc++ requres libm, so if you compile a C++ p
 //gcc --std=gnu99 -I. -Ideps -o benchmark benchmark.c idb_helpers.c isdk_xattr.c isdk_utils.c isdk_math.c isdk_string.c deps/sds.c deps/zmalloc.c deps/utf8proc.c -lm
 
 
-#include "deps/config.h"
+#include "isdk_config.h"
 #include <stdlib.h>
 #include <math.h>
 #include <errno.h>

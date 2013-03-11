@@ -27,22 +27,22 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __CONFIG_H
-#define __CONFIG_H
+#ifndef _ISDK_CONFIG_H
+#define __ISDK_CONFIG_H
 
-#cmakedefine HAVE_UNISTD_H
-#cmakedefine GNUC
-#cmakedefine _ANONYMOUS_STRUCT
-#cmakedefine HAVE_STRUCT_DIRENT_D_NAMLEN
-#cmakedefine HAVE_STRUCT_DIRENT_D_TYPE
+#define HAVE_UNISTD_H
+#define GNUC
+#define _ANONYMOUS_STRUCT
+#define HAVE_STRUCT_DIRENT_D_NAMLEN
+#define HAVE_STRUCT_DIRENT_D_TYPE
 
 //#ifdef __linux__
 //  #define __USE_BSD 1
 //  #include <sys/types.h>
 //  #include <sys/stat.h>
 //#endif
-#include "sysstat.h"    /* mode_t for Windows - <sys/types.h> for POSIX */
-#include "kbit.h"
+#include "deps/sysstat.h"    /* mode_t for Windows - <sys/types.h> for POSIX */
+#include "deps/kbit.h"
 
 #ifdef HAVE_STRUCT_DIRENT_D_NAMLEN
   #define DIR_NAME_LEN(aDirent) (aDirent->d_namlen)

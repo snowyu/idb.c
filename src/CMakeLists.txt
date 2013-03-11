@@ -39,10 +39,10 @@ int main(int argc, char * argv[]) {
 }
 " _ANONYMOUS_STRUCT)
 
-#configure_file(src/deps/config.h.in config.h)
+#configure_file(src/isdk_config.h.in config.h)
 configure_file (
-  "${PROJECT_SOURCE_DIR}/src/deps/config.h.in"
-  "${PROJECT_SOURCE_DIR}/src/deps/config.h"
+  "${PROJECT_SOURCE_DIR}/src/isdk_config.h.in"
+  "${PROJECT_SOURCE_DIR}/src/isdk_config.h"
   )
 
 #message("INCLUDE_DIRECTORIES:${PROJECT_SOURCE_DIR}/src")

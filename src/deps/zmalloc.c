@@ -41,7 +41,7 @@ void zlibc_free(void *ptr) {
 
 #include <string.h>
 #include <pthread.h>
-#include "config.h"
+#include "isdk_config.h"
 #include "zmalloc.h"
 
 #ifdef HAVE_MALLOC_SIZE

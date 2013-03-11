@@ -15,7 +15,7 @@
  * =====================================================================================
  */
 
-#include "deps/config.h"
+#include "isdk_config.h"
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>

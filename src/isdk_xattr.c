@@ -22,7 +22,7 @@
 
 //xattr functions...
 
-#include "deps/config.h"
+#include "isdk_config.h"
 #include <errno.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>

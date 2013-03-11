@@ -22,7 +22,7 @@
 
 #ifndef isdk_utils__h
  #define isdk_utils__h
- #include "deps/config.h"
+ #include "isdk_config.h"
  #include <stdbool.h>
  #include <stdio.h>
  #include <stdarg.h>
