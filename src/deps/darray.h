@@ -117,6 +117,9 @@
 #ifndef DREALLOC_FUNC
  #define DREALLOC_FUNC realloc
 #endif
+#ifndef DFREE_FUNC
+ #define DFREE_FUNC free
+#endif
 
 /*** Life cycle ***/
 
@@ -124,7 +127,7 @@
 
 #define darray_new() {0,0,0,0}
 #define darray_init(arr) do {(arr).item=0; (arr).size=0; (arr).alloc=0;(arr).onFree=NULL;} while(0)
-#define darray_free(arr) do {free((arr).item);darray_init(arr);} while(0)
+#define darray_free(arr) do {DFREE_FUNC((arr).item);darray_init(arr);} while(0)
 #define darray_free_all(arr) do {\
         if((arr).onFree) {\
             int i; \
