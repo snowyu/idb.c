@@ -36,6 +36,12 @@
 #include "sds.h"
 #include "zmalloc.h"
 
+static inline int cisprint(const uint8_t c)
+{
+    //if(c & 0x80 == 0x80 || c & 0xe0 == 0xe0 || c & 0xf0 == 0xf0) return 1;
+    return c >= 0x20;
+}
+
 sds sdsnewlen(const void *init, size_t initlen) {
     struct sdshdr *sh;
 
@@ -445,7 +451,7 @@ sds sdscatrepr(sds s, const char *p, size_t len) {
         case '\a': s = sdscatlen(s,"\\a",2); break;
         case '\b': s = sdscatlen(s,"\\b",2); break;
         default:
-            if (isprint(*p))
+            if (cisprint(*p))
                 s = sdscatprintf(s,"%c",*p);
             else
                 s = sdscatprintf(s,"\\x%02x",(unsigned char)*p);
