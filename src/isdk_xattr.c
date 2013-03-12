@@ -623,7 +623,7 @@ sds GetXattr(const char* aFile, const char* aKey)
 //0 means ok, or error code return
 ssize_t SetXattr(const char* aFile, const char* aKey, const char* aValue, const size_t aValueSize)
 {
-    ssize_t result = xattr_setxattr(aFile, aKey, aValue, aValueSize, 0, 0);
+    ssize_t result = xattr_setxattr(aFile, aKey, (void *)aValue, aValueSize, 0, 0);
     if (result == -1) result = errno;
     return result;
 }
