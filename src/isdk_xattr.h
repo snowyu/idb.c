@@ -56,24 +56,25 @@ Additionally, the extattr_get_file, extattr_set_file, and extattr_delete_file ca
 */
 
 //the xattr low level functions:
-static ssize_t xattr_getxattr(const char *path, const char *name,
+/*
+ssize_t xattr_getxattr(const char *path, const char *name,
                               void *value, ssize_t size, u_int32_t position, 
                               int options);
-static ssize_t xattr_setxattr(const char *path, const char *name,
+ssize_t xattr_setxattr(const char *path, const char *name,
                               void *value, ssize_t size, u_int32_t position,
                               int options);
 //If any of the calls are unsuccessful, the value -1 is returned and the global variable errno is set to indicate the error.
-static ssize_t xattr_removexattr(const char *path, const char *name,
+ssize_t xattr_removexattr(const char *path, const char *name,
                                  int options);
-static ssize_t xattr_listxattr(const char *path, char *namebuf,
+ssize_t xattr_listxattr(const char *path, char *namebuf,
                                size_t size, int options);
-static ssize_t xattr_fgetxattr(int fd, const char *name, void *value,
+ssize_t xattr_fgetxattr(int fd, const char *name, void *value,
                                ssize_t size, u_int32_t position, int options);
-static ssize_t xattr_fsetxattr(int fd, const char *name, void *value,
+ssize_t xattr_fsetxattr(int fd, const char *name, void *value,
                                ssize_t size, u_int32_t position, int options);
-static ssize_t xattr_fremovexattr(int fd, const char *name, int options);
-static ssize_t xattr_flistxattr(int fd, char *namebuf, size_t size, int options);
-
+ssize_t xattr_fremovexattr(int fd, const char *name, int options);
+ssize_t xattr_flistxattr(int fd, char *namebuf, size_t size, int options);
+*/
 
 ssize_t ListXattr(const char *path, char *namebuf, size_t size);
 bool IsXattrExists(const char* aFile, const char* aKey);
