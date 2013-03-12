@@ -283,7 +283,7 @@ static int procwrite(const char *path, int rnum, bool rnd){
       vKey = sdsprintf(vKey, "%d", id);
       //if (rnd && iKeyExists(vPath, vKey, sdslen(vKey))) continue;
       vValue = sdsprintf(vValue, "store this %d", id *100);
-      int vResult = iPut(vPath, vKey, sdslen(vKey), vValue, NULL, g_store_type);
+      int vResult = iPut(vPath, vKey, sdslen(vKey), vValue, sdslen(vValue), NULL, g_store_type);
       if (vResult != 0) {
           warnx("error: iPut:%d",vResult);
         err = true;

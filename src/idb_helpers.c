@@ -90,7 +90,7 @@ sds GetDirValue(const sds aDir, const char *aAttribute)
     sds result = _make_attr_file_name(aDir, aAttribute);
     int fd = open(result, O_RDONLY);
     if (fd < 0) {
-        fprintf(stderr, "Failed:%s\n", result);
+        //fprintf(stderr, "GetDirValue Failed:%s\n", result);
         sdsfree(result);
         result = NULL;
     } else {
@@ -106,14 +106,14 @@ sds GetDirValue(const sds aDir, const char *aAttribute)
 }
 
 //return true means ok. false means failed.
-bool SetDirValue(const sds aDir, const sds aValue, const char *aAttribute)
+bool SetDirValue(const sds aDir, const char *aValue, const size_t aValueSize, const char *aAttribute)
 {
     int result = false;
     sds vFile = _make_attr_file_name(aDir, aAttribute);
     int fd = open(vFile, O_WRONLY|O_TRUNC|O_CREAT, O_RW_RW_R__PERMS);
     if (fd >= 0) {
-        int vSize = write(fd, aValue, sdslen(aValue));
-        if (vSize == sdslen(aValue)) result = true;
+        int vSize = write(fd, aValue, aValueSize);
+        if (vSize == aValueSize) result = true;
         close(fd);
     }
     sdsfree(vFile);
@@ -147,16 +147,16 @@ static inline sds _iGet(const sds aDir, const char *aAttribute, const int aStore
     return result;
 }
 
-static inline int _iPut(const sds aDir, const sds aValue, const char *aAttribute, const int aStoreType)
+static inline int _iPut(const sds aDir, const char *aValue, const size_t aValueSize, const char *aAttribute, const int aStoreType)
 {
     int result = ENOEXEC;
     if BIT_CHECK(aStoreType, STORE_IN_XATTR_BIT) {
         sds s = GenerateXattrName(aAttribute);
-        result = SetXattr(aDir, s, aValue);
+        result = SetXattr(aDir, s, aValue, aValueSize);
         sdsfree(s);
     }
     if (BIT_CHECK(aStoreType, STORE_IN_FILE_BIT)) {
-        result = !SetDirValue(aDir, aValue, aAttribute);
+        result = !SetDirValue(aDir, aValue, aValueSize, aAttribute);
     }
     return result;
 }
@@ -474,7 +474,7 @@ sds iGet(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttri
     return result;
 }
 
-int iPutInFile(const sds aKeyPath, const sds aValue, const char *aAttribute, const TIDBProcesses aPartitionFullProcess)
+int iPutInFile(const sds aKeyPath, const char *aValue, const size_t aValueSize, const char *aAttribute, const TIDBProcesses aPartitionFullProcess)
 {
     sds vDir = NULL;
     int vAdjusted = 0;
@@ -490,17 +490,17 @@ int iPutInFile(const sds aKeyPath, const sds aValue, const char *aAttribute, con
         return result;
     }
     if(vDir) {
-        result = !SetDirValue(vDir, aValue, aAttribute);
+        result = !SetDirValue(vDir, aValue, aValueSize, aAttribute);
         sdsfree(vDir);
     }
     else {
-        result = !SetDirValue(aKeyPath, aValue, aAttribute);
+        result = !SetDirValue(aKeyPath, aValue, aValueSize, aAttribute);
     }
     
     return result;
 }
 
-int iPutInXattr(const sds aKeyPath, const sds aValue, const char *aAttribute, const TIDBProcesses aPartitionFullProcess)
+int iPutInXattr(const sds aKeyPath, const char *aValue, const size_t aValueSize, const char *aAttribute, const TIDBProcesses aPartitionFullProcess)
 {
     sds vDir = NULL;
     int vAdjusted = 0;
@@ -517,11 +517,11 @@ int iPutInXattr(const sds aKeyPath, const sds aValue, const char *aAttribute, co
     }
     sds s = GenerateXattrName(aAttribute);
     if(vDir) {
-        result = SetXattr(vDir, s, aValue);
+        result = SetXattr(vDir, s, aValue, aValueSize);
         sdsfree(vDir);
     }
     else {
-        result = SetXattr(aKeyPath, s, aValue);
+        result = SetXattr(aKeyPath, s, aValue, aValueSize);
     }
     sdsfree(s);
     
@@ -529,7 +529,7 @@ int iPutInXattr(const sds aKeyPath, const sds aValue, const char *aAttribute, co
 }
 
 //result = 0 means ok, ENOEXEC means no operation, -1(PATH_IS_FILE) means the same file name exists error, 
-int iPut(const sds aDir, const char* aKey, const int aKeyLen, const sds aValue, const char *aAttribute, const int aStoreType)
+int iPut(const sds aDir, const char* aKey, const int aKeyLen, const char *aValue, const size_t aValueSize, const char *aAttribute, const int aStoreType)
 {
     sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
     int vAdjusted = 0;
@@ -544,7 +544,7 @@ int iPut(const sds aDir, const char* aKey, const int aKeyLen, const sds aValue, 
     else if (result == PATH_IS_FILE) {//File Already Exists Error:
         return result;
     }
-    result = _iPut(vDir, aValue, aAttribute, aStoreType);
+    result = _iPut(vDir, aValue, aValueSize, aAttribute, aStoreType);
     
     sdsfree(vDir);
     return result;
@@ -932,7 +932,7 @@ static inline void test_putKey(sds aDir, const char* aKey, const char* aValue, c
     int vValueSize = strlen(aValue);
     sds vValue = sdsnewlen(aValue, vValueSize);
     vMsg = sdscatprintf(vMsg, "iPut('%s', '%s', '%s', %s, %d)", aDir, aKey, aValue, aAttribute, aStoreType);
-    test_cond(vMsg, iPut(aDir, aKey, strlen(aKey), vValue, aAttribute, aStoreType) == aErrno);
+    test_cond(vMsg, iPut(aDir, aKey, strlen(aKey), vValue, vValueSize, aAttribute, aStoreType) == aErrno);
     if (aErrno == IDB_OK) test_getKey(aDir, aKey, aValue, aAttribute, aStoreType);
     sdsfree(vMsg);
     sdsfree(vValue);
@@ -946,7 +946,7 @@ int main(int argc, char **argv)
         printf("Testing when Disable MaxPageSize:\n");
         printf("---------------------------------\n");
         sds x = sdsnew("testdir"), key=sdsnew("mytestkey"), y = sdsnew("hi world"), xa_value_name=GenerateXattrName(NULL);
-        test_cond("SetDirValue('testdir', 'hi world')", SetDirValue(x, y, NULL));
+        test_cond("SetDirValue('testdir', 'hi world')", SetDirValue(x, y, sdslen(y), NULL));
         test_cond("IsDirValueExists(testdir, NULL)", IsDirValueExists(x, NULL));
         sds result = GetDirValue(x, NULL);
         test_cond("GetDirValue(testdir)",
@@ -954,7 +954,7 @@ int main(int argc, char **argv)
         );
         test_cond("DelDirValue(testdir, NULL)", DelDirValue(x, NULL));
         test_cond("!IsDirValueExists(testdir, NULL)", !IsDirValueExists(x, NULL));
-        test_cond("iPut('testdir','mytestkey', 'hi world', STORE_IN_FILE)", iPut(x, key, sdslen(key), y, NULL, STORE_IN_FILE)==0);
+        test_cond("iPut('testdir','mytestkey', 'hi world', STORE_IN_FILE)", iPut(x, key, sdslen(key), y, sdslen(y), NULL, STORE_IN_FILE)==0);
         sds path=sdsnew("testdir/mytestkey");
         test_cond("IsDirValueExists(testdir/mytestkey, NULL)", IsDirValueExists(path, NULL));
         test_cond("iIsExists(testdir, mytestkey, STORE_IN_FILE) should be exists.", iIsExists(x, key, strlen(key),NULL, STORE_IN_FILE));
@@ -974,7 +974,7 @@ int main(int argc, char **argv)
         test_cond("iKeyDelete(testdir, mytestkey)", iKeyDelete(x, key, sdslen(key)));
         test_cond("!DirectoryExists('testdir/mytestkey')", DirectoryExists("testdir/mytestkey") == PATH_IS_NOT_EXISTS);
 
-        test_cond("iPut('testdir','mytestkey', 'hi world', STORE_IN_XATTR)", iPut(x, key, sdslen(key), y, NULL, STORE_IN_XATTR)==0);
+        test_cond("iPut('testdir','mytestkey', 'hi world', STORE_IN_XATTR)", iPut(x, key, sdslen(key), y, sdslen(y), NULL, STORE_IN_XATTR)==0);
         test_cond("IsDirValueExists(testdir/mytestkey, NULL)", !IsDirValueExists(path, NULL));
         test_cond("IsXattrExists(testdir/mytestkey, IDB_VALUE_NAME)", IsXattrExists(path, xa_value_name));
         test_cond("iIsExists(testdir, mytestkey, STORE_IN_XATTR) should be exists.", iIsExists(x, key, strlen(key),NULL, STORE_IN_XATTR));

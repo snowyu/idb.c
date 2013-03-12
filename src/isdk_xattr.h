@@ -79,7 +79,7 @@ ssize_t ListXattr(const char *path, char *namebuf, size_t size);
 bool IsXattrExists(const char* aFile, const char* aKey);
 sds GetXattr(const char* aFile, const char* aKey);
 //0: ok; others: errcode.
-ssize_t SetXattr(const char* aFile, const char* aKey, sds aValue);
+ssize_t SetXattr(const char* aFile, const char* aKey, const char *aValue, const size_t aValueSize);
 //0: ok; others: errcode.
 ssize_t DelXattr(const char* aFile, const char* aKey);
 

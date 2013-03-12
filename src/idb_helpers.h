@@ -98,7 +98,7 @@
   * U must free the result after using it.
   */
  sds GetDirValue(const sds aDir, const char *aAttribute);
- bool SetDirValue(const sds aDir, const sds aValue, const char *aAttribute);
+ bool SetDirValue(const sds aDir, const char *aValue, const size_t aValueSize, const char *aAttribute);
 
 
  //the atrribute operations:
@@ -110,9 +110,9 @@
  sds iGetInXattr(const sds aKeyPath, const char *aAttribute);
  sds iGet(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType); //deprecated
  //result = 0 means ok, ENOEXEC means no operation, -1(PATH_IS_FILE) means the same file name exists error, 
- int iPutInFile(const sds aKeyPath, const sds aValue, const char *aAttribute, const TIDBProcesses aPartitionFullProcess);
- int iPutInXattr(const sds aKeyPath, const sds aValue, const char *aAttribute, const TIDBProcesses aPartitionFullProcess);
- int iPut(const sds aDir, const char* aKey, const int aKeyLen, const sds aValue, const char *aAttribute, const int aStoreType); //deprecated
+ int iPutInFile(const sds aKeyPath, const char *aValue, const size_t aValueSize, const char *aAttribute, const TIDBProcesses aPartitionFullProcess);
+ int iPutInXattr(const sds aKeyPath, const char *aValue, const size_t aValueSize, const char *aAttribute, const TIDBProcesses aPartitionFullProcess);
+ int iPut(const sds aDir, const char* aKey, const int aKeyLen, const char *aValue, const size_t aValueSize, const char *aAttribute, const int aStoreType); //deprecated
  bool iDeleleInFile(const sds aKeyPath, const char *aAttribute);
  bool iDeleleInXattr(const sds aKeyPath, const char *aAttribute);
  bool iDelele(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType); //deprecated
