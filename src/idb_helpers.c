@@ -252,7 +252,7 @@ static sds _GetKeyDir(const sds aDir, const int aMaxItemCount, const TIDBProcess
     char *s = vKey;
     sds vDir = aDir;
     if (DirectoryExists(vDir) == PATH_IS_DIR && iSubkeyCount(vDir, NULL) >= aMaxItemCount) {
-        sds vUtf8Char = sdsnewlen(NULL, 6); //the maximum size of the utf-8 char is 6.
+        sds vUtf8Char = sdsalloc(NULL, 6); //the maximum size of the utf-8 char is 6.
         do {
             //vLen means character byte length.
             ssize_t vLen = IterateUtf8Char(s, vKeySize, vUtf8Char);
@@ -345,7 +345,7 @@ static sds _IsKeyDirExists(const sds aDir)
     char *s = vKey;
     sds vDir = aDir;
     ssize_t vKeySize = sdslen(vKey);
-    sds vUtf8Char = sdsnewlen(NULL, 6); //the maximum size of the utf-8 char is 6.
+    sds vUtf8Char = sdsalloc(NULL, 6); //the maximum size of the utf-8 char is 6.
     do {
         //vLen means character byte length.
         ssize_t vLen = IterateUtf8Char(s, vKeySize, vUtf8Char);
@@ -656,7 +656,7 @@ sds GetRelativePath(const char* aFrom, const int aFromLen, const char* aTo, cons
     }
     //if the last char is PATH_SEP
     if (aFrom[aFromLen-1]==PATH_SEP) vSepCount--;
-    sds result = sdsnewlen(NULL, aToLen+(vSepCount*3));
+    sds result = sdsalloc(NULL, aToLen+(vSepCount*3));
     while (vSepCount) {
         result = sdscatlen(result, "..", 2);
         result = sdscatlen(result, PATH_SEP_STR, 1);
@@ -774,7 +774,7 @@ static ssize_t _iSubkeyWalk(const sds aDir, const char* aKey, const int aKeyLen,
     ssize_t result = WalkDir(vDir, aRec->pattern, LIST_NORMAL_DIRS, 0, aRec->leftCount, (WalkDirHandler) _SubkeyWalker, (void*) aRec);
     if (result>=0 && (aRec->leftCount <=0 || result < aRec->leftCount)) {
         aRec->leftCount = aRec->leftCount - result;
-        sds vSubkeyPart = sdsnewlen(NULL, 8);
+        sds vSubkeyPart = sdsalloc(NULL, 8);
         //TODO:this should be a repeat loop until pattern[0] == '*' or '?' or NULL
         if (aRec->pattern && aRec->pattern[0] != '\0' && aRec->pattern[0] != '*' && aRec->pattern[0] != '?') {
             sds vIndexKey = sdsnewlen(".", 1);
@@ -816,7 +816,7 @@ ssize_t iSubkeyWalk(const sds aDir, const char* aKey, const int aKeyLen, const c
 {
     assert(aDir || aKeyLen > 0);
     sds vDir = aDir;
-    sds vSubkeyPart = sdsnewlen(NULL, 8);
+    sds vSubkeyPart = sdsalloc(NULL, 8);
     TSubkeyWalkerRec *vRec = zmalloc(sizeof(TSubkeyWalkerRec));
     vRec->pattern = aPattern;
     vRec->count = 0;

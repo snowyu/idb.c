@@ -43,7 +43,7 @@ static inline int cisprint(const uint8_t c)
     return c >= 0x20;
 }
 
-sds sdsnewlen(const void *init, size_t initlen) {
+sds sdsalloc(const void *init, size_t initlen) {
     struct sdshdr *sh;
 
     if (init) {
@@ -63,6 +63,23 @@ sds sdsnewlen(const void *init, size_t initlen) {
         memcpy(sh->buf, init, initlen);
     }
     sh->buf[sh->len] = '\0';
+    return (char*)sh->buf;
+}
+
+sds sdsnewlen(const void *init, size_t initlen) {
+    struct sdshdr *sh;
+
+    if (init) {
+        sh = zmalloc(sizeof(struct sdshdr)+initlen+1);
+    } else {
+        sh = zcalloc(sizeof(struct sdshdr)+initlen+1);
+    }
+    if (sh == NULL) return NULL;
+    sh->len = initlen;
+    sh->free = 0;
+    if (initlen && init)
+        memcpy(sh->buf, init, initlen);
+    sh->buf[initlen] = '\0';
     return (char*)sh->buf;
 }
 
@@ -664,9 +681,14 @@ int main(void) {
             strlen(x) == 0 && sdslen(x) == 0 && memcmp(x,"\0",1) == 0);
 
         sdsfree(x);
-        x = sdsnewlen(NULL, 2);
-        test_cond("Create a empty string with specified length",
+        x = sdsalloc(NULL, 2);
+        test_cond("Create a NULL string with reserved space 2 bytes",
             sdslen(x) == 0 && sdsavail(x) == 2);
+
+        sdsfree(x);
+        x = sdsnewlen(NULL, 2);
+        test_cond("Create a string with length 2 bytes",
+            sdslen(x) == 2 && sdsavail(x) == 0);
 
         sdsfree(x);
         x = sdsnewlen("foo",2);

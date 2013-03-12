@@ -55,6 +55,11 @@ static inline size_t sdsavail(const sds s) {
     return sh->free;
 }
 
+//create a NULL string with initlen space reserved
+//sdslen(s) should always be 0.
+sds sdsalloc(const void *init, size_t initlen);
+//create a string with specific initlen length.
+//sdslen(s) should always be initlen.
 sds sdsnewlen(const void *init, size_t initlen);
 sds sdsnew(const char *init);
 sds sdsempty();

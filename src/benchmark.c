@@ -273,7 +273,7 @@ static int procwrite(const char *path, int rnum, bool rnd){
   double stime = now();
   TIDBBase vDB;
   //vDB.path = path;
-  sds vKey = sdsnewlen(NULL, 8), vValue = sdsnewlen(NULL, 8);
+  sds vKey = sdsalloc(NULL, 8), vValue = sdsalloc(NULL, 8);
   sds vPath = sdsnew(path);
   int i;
   for(i = 1; i <= rnum; i++){
@@ -320,7 +320,7 @@ static int procread(const char *path, int rnum, bool rnd){
           IDBMaxPageCount, g_randseed, path, rnum);
   bool err = false;
   double stime = now();
-  sds vKey = sdsnewlen(NULL, 8), vValue = sdsnewlen(NULL, 8);
+  sds vKey = sdsalloc(NULL, 8), vValue = sdsalloc(NULL, 8);
   sds vPath = sdsnew(path);
   int i;
   for(i = 1; i <= rnum; i++){
