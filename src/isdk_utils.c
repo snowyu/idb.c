@@ -436,7 +436,7 @@ static int process_matched_dir(int aCount, const FTSENT *aNode, void *aPtr){
 dStringArray* FTSListDir(const char* aDir, const char* aPattern, int aOptions)
 {
     dStringArray* result = dStringArray_new();
-    int vErrno = FTSWalkDir(aDir, aPattern, aOptions, process_matched_dir, result);
+    int vErrno = FTSWalkDir(aDir, aPattern, aOptions, (FTSWalkDirHandler) process_matched_dir, result);
 
 
     if (vErrno < 0) {
@@ -959,7 +959,7 @@ int main(void) {
         sdsfree(result);
         result = sdsJoinPathLen(sdsdup(p1), NULL, 0);
         test_cond("sdsJoinPathLen(p1, NULL, 0)",
-            result && sdslen(result) == 8 && memcmp(result, "mypath_1\0", 9) == 0
+            result && sdslen(result) == 9 && memcmp(result, "mypath_1/\0", 10) == 0
         );
         //printf("%s, %s\n",p1, result);
         sdsfree(result);

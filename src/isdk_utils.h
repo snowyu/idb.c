@@ -26,7 +26,7 @@
  #include <stdbool.h>
  #include <stdio.h>
  #include <stdarg.h>
- #include <fts.h>            /* Traverse a file hierarchy. */
+//#include <fts.h>            /* Traverse a file hierarchy. */
 
  #include "deps/zmalloc.h"
  /*use the redis C dynamic strings library: sds.h*/
@@ -212,7 +212,7 @@ void warnx(const char *fmt, ...);
 
 typedef struct stat Stat;
 typedef struct dirent Dirent;
-typedef int(*FTSWalkDirHandler)(int aCount,const FTSENT *aNode, void *aPtr);
+typedef int(*FTSWalkDirHandler)(int aCount,const void *aNode, void *aPtr);
 typedef ssize_t(*WalkDirHandler)(size_t aCount, const char *aDir, const Dirent *aItem, void *aUserPtr);
 
 /* Open named file without truncate or create safely */
