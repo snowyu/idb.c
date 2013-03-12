@@ -55,11 +55,11 @@
  //dkStopped: stopped and raise error.
  TIDBProcesses IDBPartitionFullProcess  = dkIgnored;
 
-static inline sds _make_attr_file_name(const sds aDir, const sds aAttribute)
+static inline sds _make_attr_file_name(const sds aDir, const char *aAttribute)
 {
     sds vFile = sdsdup(aDir);
-    if (aAttribute != NULL && sdslen(aAttribute) != 0) {
-        vFile = sdsJoinPathLen(vFile, aAttribute, sdslen(aAttribute));
+    if (aAttribute != NULL && *aAttribute != '\0') {
+        vFile = sdsJoinPathLen(vFile, aAttribute, strlen(aAttribute));
     }
     else {
         vFile = sdsJoinPathLen(vFile, IDB_VALUE_NAME, 6);
@@ -68,7 +68,7 @@ static inline sds _make_attr_file_name(const sds aDir, const sds aAttribute)
 }
 
 
-bool DelDirValue(const sds aDir, const sds aAttribute)
+bool DelDirValue(const sds aDir, const char *aAttribute)
 {
     sds vFile = _make_attr_file_name(aDir, aAttribute);
     int result = unlink(vFile);
@@ -76,7 +76,7 @@ bool DelDirValue(const sds aDir, const sds aAttribute)
     return result == 0;
 }
 
-bool IsDirValueExists(const sds aDir, const sds aAttribute)
+bool IsDirValueExists(const sds aDir, const char *aAttribute)
 {
     sds vFile = _make_attr_file_name(aDir, aAttribute);
     int result = DirectoryExists(vFile);
@@ -85,19 +85,19 @@ bool IsDirValueExists(const sds aDir, const sds aAttribute)
 }
 
 //http://codewiki.wikidot.com/system-calls
-sds GetDirValue(const sds aDir, const sds aAttribute)
+sds GetDirValue(const sds aDir, const char *aAttribute)
 {
     sds result = _make_attr_file_name(aDir, aAttribute);
     int fd = open(result, O_RDONLY);
     if (fd < 0) {
-        //fprintf(stderr, "Failed:%s\n", result);
+        fprintf(stderr, "Failed:%s\n", result);
         sdsfree(result);
         result = NULL;
     } else {
         sdsclear(result);
         int vSize = lseek(fd, 0L, SEEK_END);
         lseek(fd, 0L, SEEK_SET);
-        sdsMakeRoomFor(result, vSize);
+        result = sdsMakeRoomFor(result, vSize);
         vSize = read(fd, result, vSize);
         sdsIncrLen(result, vSize);
         close(fd);
@@ -106,7 +106,7 @@ sds GetDirValue(const sds aDir, const sds aAttribute)
 }
 
 //return true means ok. false means failed.
-bool SetDirValue(const sds aDir, const sds aValue, const sds aAttribute)
+bool SetDirValue(const sds aDir, const sds aValue, const char *aAttribute)
 {
     int result = false;
     sds vFile = _make_attr_file_name(aDir, aAttribute);
@@ -120,20 +120,20 @@ bool SetDirValue(const sds aDir, const sds aValue, const sds aAttribute)
     return result;
 }
 
-static inline sds GenerateXattrName(const sds aAttribute)
+static inline sds GenerateXattrName(const char *aAttribute)
 {
     sds s = sdsnew(XATTR_PREFIX);
     if (aAttribute) {
-        sds v = aAttribute;
-        if (v[0] == IDB_ATTR_PREFIX_CHR) v++;
-        s = sdscatsds(s, v);
+        //sds v = aAttribute;
+        if (aAttribute[0] == IDB_ATTR_PREFIX_CHR) aAttribute++;
+        s = sdscat(s, aAttribute);
     }
     else
         s = sdscat(s, IDB_VALUE_NAME+1); //skip the dot.
     return s;
 }
 
-static inline sds _iGet(const sds aDir, const sds aAttribute, const int aStoreType)
+static inline sds _iGet(const sds aDir, const char *aAttribute, const int aStoreType)
 {
     sds result = NULL;
     if BIT_CHECK(aStoreType, STORE_IN_XATTR_BIT) {
@@ -147,7 +147,7 @@ static inline sds _iGet(const sds aDir, const sds aAttribute, const int aStoreTy
     return result;
 }
 
-static inline int _iPut(const sds aDir, const sds aValue, const sds aAttribute, const int aStoreType)
+static inline int _iPut(const sds aDir, const sds aValue, const char *aAttribute, const int aStoreType)
 {
     int result = ENOEXEC;
     if BIT_CHECK(aStoreType, STORE_IN_XATTR_BIT) {
@@ -166,7 +166,7 @@ static inline size_t _iAttrCount(const sds aDir, const char* aPattern) {
     return result;
 }
 
-static inline bool _DeleleAttr(const sds aDir, const sds aAttribute, const int aStoreType)
+static inline bool _DeleleAttr(const sds aDir, const char *aAttribute, const int aStoreType)
 {
     int result = ENOEXEC;
     if BIT_CHECK(aStoreType, STORE_IN_XATTR_BIT) {
@@ -189,7 +189,7 @@ static inline bool _DeleleAttr(const sds aDir, const sds aAttribute, const int a
     return result;
 }
 
-static bool _AttrIsExists(const sds aDir, const sds aAttribute, const int aStoreType)
+static bool _AttrIsExists(const sds aDir, const char *aAttribute, const int aStoreType)
 {
     int result = -1;
     errno = 0;
@@ -391,7 +391,7 @@ static sds _IsKeyDirExists(const sds aDir)
     return vDir;
 }
 
-bool iIsExistsInFile(const sds aKeyPath, const sds aAttribute)
+bool iIsExistsInFile(const sds aKeyPath, const char *aAttribute)
 {
     bool result = IsDirValueExists(aKeyPath, aAttribute);
     if (result == false && IDBMaxPageCount > 0) {
@@ -405,7 +405,7 @@ bool iIsExistsInFile(const sds aKeyPath, const sds aAttribute)
     return result;
 }
 
-bool iIsExistsInXattr(const sds aKeyPath, const sds aAttribute)
+bool iIsExistsInXattr(const sds aKeyPath, const char *aAttribute)
 {
     sds s = GenerateXattrName(aAttribute);
     bool result = IsXattrExists(aKeyPath, s);
@@ -421,7 +421,7 @@ bool iIsExistsInXattr(const sds aKeyPath, const sds aAttribute)
     return result;
 }
 
-bool iIsExists(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType)
+bool iIsExists(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType)
 {
     sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
     bool result = _AttrIsExists(vDir, aAttribute, aStoreType);
@@ -435,7 +435,7 @@ bool iIsExists(const sds aDir, const char* aKey, const int aKeyLen, const sds aA
     return result;
 }
 
-sds iGetInFile(const sds aKeyPath, const sds aAttribute)
+sds iGetInFile(const sds aKeyPath, const char *aAttribute)
 {
     sds result = GetDirValue(aKeyPath, aAttribute);
     if (result == NULL && IDBMaxPageCount > 0) {
@@ -448,7 +448,7 @@ sds iGetInFile(const sds aKeyPath, const sds aAttribute)
     return result;
 }
 
-sds iGetInXattr(const sds aKeyPath, const sds aAttribute)
+sds iGetInXattr(const sds aKeyPath, const char *aAttribute)
 {
     sds s = GenerateXattrName(aAttribute);
     sds result = GetXattr(aKeyPath, s);
@@ -463,7 +463,7 @@ sds iGetInXattr(const sds aKeyPath, const sds aAttribute)
     return result;
 }
 
-sds iGet(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType){
+sds iGet(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType){
     sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
     sds result = _iGet(vDir, aAttribute, aStoreType);
     if (result == NULL && IDBMaxPageCount > 0) {
@@ -474,7 +474,7 @@ sds iGet(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribu
     return result;
 }
 
-int iPutInFile(const sds aKeyPath, const sds aValue, const sds aAttribute, const TIDBProcesses aPartitionFullProcess)
+int iPutInFile(const sds aKeyPath, const sds aValue, const char *aAttribute, const TIDBProcesses aPartitionFullProcess)
 {
     sds vDir = NULL;
     int vAdjusted = 0;
@@ -500,7 +500,7 @@ int iPutInFile(const sds aKeyPath, const sds aValue, const sds aAttribute, const
     return result;
 }
 
-int iPutInXattr(const sds aKeyPath, const sds aValue, const sds aAttribute, const TIDBProcesses aPartitionFullProcess)
+int iPutInXattr(const sds aKeyPath, const sds aValue, const char *aAttribute, const TIDBProcesses aPartitionFullProcess)
 {
     sds vDir = NULL;
     int vAdjusted = 0;
@@ -529,7 +529,7 @@ int iPutInXattr(const sds aKeyPath, const sds aValue, const sds aAttribute, cons
 }
 
 //result = 0 means ok, ENOEXEC means no operation, -1(PATH_IS_FILE) means the same file name exists error, 
-int iPut(const sds aDir, const char* aKey, const int aKeyLen, const sds aValue, const sds aAttribute, const int aStoreType)
+int iPut(const sds aDir, const char* aKey, const int aKeyLen, const sds aValue, const char *aAttribute, const int aStoreType)
 {
     sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
     int vAdjusted = 0;
@@ -550,7 +550,7 @@ int iPut(const sds aDir, const char* aKey, const int aKeyLen, const sds aValue, 
     return result;
 }
 
-bool iDeleleInFile(const sds aKeyPath, const sds aAttribute)
+bool iDeleleInFile(const sds aKeyPath, const char *aAttribute)
 {
     bool result = false;
     sds vDir = sdsdup(aKeyPath);
@@ -564,7 +564,7 @@ bool iDeleleInFile(const sds aKeyPath, const sds aAttribute)
     return result;
 }
 
-bool iDeleleInXattr(const sds aKeyPath, const sds aAttribute)
+bool iDeleleInXattr(const sds aKeyPath, const char *aAttribute)
 {
     bool result = false;
     sds vDir = sdsdup(aKeyPath);
@@ -585,7 +585,7 @@ bool iDeleleInXattr(const sds aKeyPath, const sds aAttribute)
     return result;
 }
 
-bool iDelele(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType)
+bool iDelele(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType)
 {
     bool result = false;
     sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);

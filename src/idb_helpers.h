@@ -92,30 +92,30 @@
  extern TIDBProcesses IDBPartitionFullProcess;//  = dkIgnored;
 
  //Low-Level functions
- bool DelDirValue(const sds aDir, const sds aAttribute);
- bool IsDirValueExists(const sds aDir, const sds aAttribute);
+ bool DelDirValue(const sds aDir, const char *aAttribute);
+ bool IsDirValueExists(const sds aDir, const char *aAttribute);
  /* Get the value of the a Key(aDir) if successful, else return NULL
   * U must free the result after using it.
   */
- sds GetDirValue(const sds aDir, const sds aAttribute);
- bool SetDirValue(const sds aDir, const sds aValue, const sds aAttribute);
+ sds GetDirValue(const sds aDir, const char *aAttribute);
+ bool SetDirValue(const sds aDir, const sds aValue, const char *aAttribute);
 
 
  //the atrribute operations:
  //if aAttribute is NULL means the default attribute: .value
- bool iIsExistsInFile(const sds aKeyPath, const sds aAttribute);
- bool iIsExistsInXattr(const sds aKeyPath, const sds aAttribute);
- bool iIsExists(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType); //deprecated
- sds iGetInFile(const sds aKeyPath, const sds aAttribute);
- sds iGetInXattr(const sds aKeyPath, const sds aAttribute);
- sds iGet(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType); //deprecated
+ bool iIsExistsInFile(const sds aKeyPath, const char *aAttribute);
+ bool iIsExistsInXattr(const sds aKeyPath, const char *aAttribute);
+ bool iIsExists(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType); //deprecated
+ sds iGetInFile(const sds aKeyPath, const char *aAttribute);
+ sds iGetInXattr(const sds aKeyPath, const char *aAttribute);
+ sds iGet(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType); //deprecated
  //result = 0 means ok, ENOEXEC means no operation, -1(PATH_IS_FILE) means the same file name exists error, 
- int iPutInFile(const sds aKeyPath, const sds aValue, const sds aAttribute, const TIDBProcesses aPartitionFullProcess);
- int iPutInXattr(const sds aKeyPath, const sds aValue, const sds aAttribute, const TIDBProcesses aPartitionFullProcess);
- int iPut(const sds aDir, const char* aKey, const int aKeyLen, const sds aValue, const sds aAttribute, const int aStoreType); //deprecated
- bool iDeleleInFile(const sds aKeyPath, const sds aAttribute);
- bool iDeleleInXattr(const sds aKeyPath, const sds aAttribute);
- bool iDelele(const sds aDir, const char* aKey, const int aKeyLen, const sds aAttribute, const int aStoreType); //deprecated
+ int iPutInFile(const sds aKeyPath, const sds aValue, const char *aAttribute, const TIDBProcesses aPartitionFullProcess);
+ int iPutInXattr(const sds aKeyPath, const sds aValue, const char *aAttribute, const TIDBProcesses aPartitionFullProcess);
+ int iPut(const sds aDir, const char* aKey, const int aKeyLen, const sds aValue, const char *aAttribute, const int aStoreType); //deprecated
+ bool iDeleleInFile(const sds aKeyPath, const char *aAttribute);
+ bool iDeleleInXattr(const sds aKeyPath, const char *aAttribute);
+ bool iDelele(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType); //deprecated
 
  //the key operations:
  //Make a new aAlias of the aKey
