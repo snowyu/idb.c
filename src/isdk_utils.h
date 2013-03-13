@@ -225,6 +225,7 @@ int MoveDir(const char* aSrc, const char* aDest);
 
 //remove file or directories recursive.
 //retrun 0 means successful.
+//TODO: DONT USE FTS to do so.
 int DeleteDir(const char* aDir);
 
 //Walk through files or directories in the aDir.
