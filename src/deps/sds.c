@@ -43,29 +43,6 @@ static inline int cisprint(const uint8_t c)
     return c >= 0x20;
 }
 
-sds sdsalloc(const void *init, size_t initlen) {
-    struct sdshdr *sh;
-
-    if (init) {
-        sh = zmalloc(sizeof(struct sdshdr)+initlen+1);
-    } else {
-        sh = zcalloc(sizeof(struct sdshdr)+initlen+1);
-    }
-    if (sh == NULL) return NULL;
-    if (init) {
-        sh->len = initlen;
-        sh->free = 0;
-    } else {
-        sh->len = 0;
-        sh->free = initlen;
-    }
-    if (initlen && init) {
-        memcpy(sh->buf, init, initlen);
-    }
-    sh->buf[sh->len] = '\0';
-    return (char*)sh->buf;
-}
-
 sds sdsnewlen(const void *init, size_t initlen) {
     struct sdshdr *sh;
 
@@ -276,18 +253,6 @@ sds sdscatvprintf(sds s, const char *fmt, va_list ap) {
 }
 
 sds sdscatprintf(sds s, const char *fmt, ...) {
-    va_list ap;
-    char *t;
-    va_start(ap, fmt);
-    t = sdscatvprintf(s,fmt,ap);
-    va_end(ap);
-    return t;
-}
-
-sds sdsprintf(sds s, const char *fmt, ...) {
-    struct sdshdr *sh = (void*) (s-(sizeof(struct sdshdr)));
-    sh->free += sh->len;
-    sh->len = 0;
     va_list ap;
     char *t;
     va_start(ap, fmt);
@@ -679,11 +644,6 @@ int main(void) {
         x = sdsempty();
         test_cond("sdsempty() should be strlen 0",
             strlen(x) == 0 && sdslen(x) == 0 && memcmp(x,"\0",1) == 0);
-
-        sdsfree(x);
-        x = sdsalloc(NULL, 2);
-        test_cond("Create a NULL string with reserved space 2 bytes",
-            sdslen(x) == 0 && sdsavail(x) == 2);
 
         sdsfree(x);
         x = sdsnewlen(NULL, 2);

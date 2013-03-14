@@ -30,7 +30,7 @@
 
  #include "deps/zmalloc.h"
  /*use the redis C dynamic strings library: sds.h*/
- #include "deps/sds.h"
+ #include "isdk_sds.h"
  #include "deps/darray.h"
  //#include "deps/adlist.h"  //the double-link list
  #include "deps/filename.h"
