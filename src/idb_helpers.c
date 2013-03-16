@@ -252,7 +252,7 @@ static sds _GetKeyDir(const sds aDir, const int aMaxItemCount, const TIDBProcess
     char *s = vKey;
     sds vDir = aDir;
     if (DirectoryExists(vDir) == PATH_IS_DIR && iSubkeyCount(vDir, NULL) >= aMaxItemCount) {
-        sds vUtf8Char = sdsalloc(NULL, 6); //the maximum size of the utf-8 char is 6.
+        sds vUtf8Char = sdsalloc(NULL, 8); //the maximum size of the utf-8 char is 6.
         do {
             //vLen means character byte length.
             ssize_t vLen = IterateUtf8Char(s, vKeySize, vUtf8Char);
@@ -345,7 +345,7 @@ static sds _IsKeyDirExists(const sds aDir)
     char *s = vKey;
     sds vDir = aDir;
     ssize_t vKeySize = sdslen(vKey);
-    sds vUtf8Char = sdsalloc(NULL, 6); //the maximum size of the utf-8 char is 6.
+    sds vUtf8Char = sdsalloc(NULL, 8); //the maximum size of the utf-8 char is 6.
     do {
         //vLen means character byte length.
         ssize_t vLen = IterateUtf8Char(s, vKeySize, vUtf8Char);
