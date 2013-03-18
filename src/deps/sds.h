@@ -45,8 +45,11 @@ struct sdshdr {
 };
 
 static inline size_t sdslen(const sds s) {
-    struct sdshdr *sh = (void*)(s-(sizeof(struct sdshdr)));
-    return sh->len;
+    if (s) {
+        struct sdshdr *sh = (void*)(s-(sizeof(struct sdshdr)));
+        return sh->len;
+    } else
+        return 0;
 }
 
 static inline size_t sdsavail(const sds s) {
