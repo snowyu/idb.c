@@ -234,7 +234,7 @@ int DeleteDir(const char* aDir)
             case FTS_DNR: //A directory which cannot be read.  This is an error 
             case FTS_NS:  //A file for which no stat(2) information was available. 
             case FTS_ERR:
-                printf("error file name: %s\n", node->fts_path);
+                printf("fts error file name: %s, errno:%d\n", node->fts_path, node->fts_errno);
                 result = node->fts_errno;
                 break;
             default:
