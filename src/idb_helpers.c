@@ -612,6 +612,22 @@ bool iKeyDelete(const sds aDir, const char* aKey, const int aKeyLen){
     return result;
 }
 
+int iKeyIsExists(const sds aDir, const char* aKey, const int aKeyLen){
+    int result = false;
+    sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
+    result = DirectoryExists(vDir);
+    if (result != PATH_IS_DIR && IDBMaxPageCount > 0){
+        vDir = _IsKeyDirExists(vDir);
+        if (vDir) {
+          result = DirectoryExists(vDir);
+        }
+    }
+    if (vDir) {
+      sdsfree(vDir);
+    }
+    return result;
+}
+
 //the simple version to get relative path.
 //get the relative path from aFrom dir
 //FromDir       ToDir           Result(RelativeDir)

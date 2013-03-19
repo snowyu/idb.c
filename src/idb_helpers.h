@@ -125,13 +125,7 @@
  bool iKeyDelete(const sds aDir, const char* aKey, const int aKeyLen);
  //is the key exists?
  //-1 means err, 0 means false, 1 means true.
- static inline int iKeyIsExists(const sds aDir, const char* aKey, const int aKeyLen)
- {
-     sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
-     int result = DirectoryExists(vDir);
-     sdsfree(vDir);
-     return result;
- }
+ int iKeyIsExists(const sds aDir, const char* aKey, const int aKeyLen);
 
  //the subkey operations:
  //aPattern = NULL means match all subkeys
