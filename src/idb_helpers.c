@@ -293,7 +293,7 @@ static sds _GetKeyDir(const sds aDir, const int aMaxItemCount, const TIDBProcess
                 }
                 sdsfree(vUtf8Char);
                 if (vKey) sdsfree(vKey);
-                sdsfree(aDir);
+                sdsfree(vDir);
                 return NULL;
             }
         } while(vKeySize > 0);
@@ -345,6 +345,7 @@ static sds _IsKeyDirExists(const sds aDir)
     char *s = vKey;
     sds vDir = aDir;
     ssize_t vKeySize = sdslen(vKey);
+    printf("_IsKeyDirExists: key=%s\n", s);
     sds vUtf8Char = sdsalloc(NULL, 8); //the maximum size of the utf-8 char is 6.
     do {
         //vLen means character byte length.
@@ -353,21 +354,29 @@ static sds _IsKeyDirExists(const sds aDir)
             //vUtf8Char = sdsSetlen(vUtf8Char, vLen);
             vDir = sdsJoinPathLen(vDir, IDB_PART_DIR_PREFIX, strlen(IDB_PART_DIR_PREFIX));
             vDir = sdscatlen(vDir, vUtf8Char, vLen);
+    printf("_IsKeyDirExists: vDir=%s\n", vDir);
             if (DirectoryExists(vDir) == PATH_IS_DIR) {
+    printf("_IsKeyDirExists Got\n");
                 s += vLen;
                 vKeySize -= vLen;
                 sds vTempDir = sdsJoinPathLen(sdsdup(vDir), s, vKeySize);
+    printf("_IsKeyDirExists Got: vTempDir=%s\n", vTempDir);
                 if (DirectoryExists(vTempDir) == PATH_IS_DIR){
                     //Got it
+    printf("_IsKeyDirExists Got: vDir=%s\n", vDir);
                     sdsfree(vTempDir);
                     break;
                 }
                 sdsfree(vTempDir);
             }
             else {
+
                 sdsfree(vUtf8Char);
+                printf("_IsKeyDirExists Nothing vUtf8Char\n");
                 sdsfree(vKey);
-                sdsfree(aDir);
+                printf("_IsKeyDirExists Nothing vKey\n");
+                sdsfree(vDir);
+                printf("_IsKeyDirExists Nothing aDir\n");
                 return NULL;
             }
         } else {
@@ -376,11 +385,11 @@ static sds _IsKeyDirExists(const sds aDir)
                 case 0:
                     warnx("No Char found in the key:%s", vKey);
                 case UTF8PROC_ERROR_INVALIDUTF8 :
-                    warnx("_iAdjustItemDir:%s UTF8PROC_ERROR_INVALIDUTF8", vKey);
+                    warnx("_IsKeyDirExists:%s UTF8PROC_ERROR_INVALIDUTF8", vKey);
             }
             sdsfree(vUtf8Char);
             sdsfree(vKey);
-            sdsfree(aDir);
+            sdsfree(vDir);
             return NULL;
         }
     } while(vKeySize > 0);
@@ -468,6 +477,7 @@ sds iGet(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttri
     sds result = _iGet(vDir, aAttribute, aStoreType);
     if (result == NULL && IDBMaxPageCount > 0) {
         vDir = _IsKeyDirExists(vDir);
+        printf("NewDir:%s\n", vDir);
         if (vDir != NULL) result = _iGet(vDir, aAttribute, aStoreType);
     }
     if (vDir) sdsfree(vDir);
