@@ -231,7 +231,7 @@ static bool _AttrIsExists(const sds aDir, const char *aAttribute, const int aSto
     //    break;
     //  end;
     //end;
-static sds _GetKeyDir(const sds aDir, const int aMaxItemCount, const TIDBProcesses aPartitionFullProcess)
+static sds _GetKeyDir(sds aDir, const int aMaxItemCount, const TIDBProcesses aPartitionFullProcess)
 {
     sds vDir = aDir;
     int vDirExists = DirectoryExists(aDir);
@@ -337,7 +337,7 @@ static sds _GetKeyDir(const sds aDir, const int aMaxItemCount, const TIDBProcess
     //    return NULL;
     //  end;
     //end;
-static sds _IsKeyDirExists(const sds aDir)
+static sds _IsKeyDirExists(sds aDir)
 {
     errno = 0;
     const sds vKey = ExtractLastPathName(aDir);
