@@ -28,3 +28,4 @@ casket.*
 *.zip
 config.status
 aclocal.m4
+build/
