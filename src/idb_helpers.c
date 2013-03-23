@@ -480,10 +480,12 @@ long iGetInt(const sds aDir, const char* aKey, const int aKeyLen, const char *aA
     long result = 0;
     sds s = iGet(aDir, aKey, aKeyLen, aAttribute, aStoreType);
     if (s) {
-         char* vEnd = NULL;
-         //strtol: convert str to long
-         //base 0 means the same syntax used for integer constants in C
+        char* vEnd = NULL;
+        //strtol: convert str to long
+        //base 0 means the same syntax used for integer constants in C
         result = strtol(s, &vEnd, 0);
+        if (errno)
+            result = 0;
         sdsfree(s);
     }
     return result;
@@ -502,7 +504,7 @@ int iPutInt(const sds aDir, const char* aKey, const int aKeyLen, long aValue, co
 long iIncrBy(const sds aDir, const char* aKey, const int aKeyLen, long aValue, const char *aAttribute, const int aStoreType)
 {
     long result = iGetInt(aDir, aKey, aKeyLen, aAttribute, aStoreType);
-    result += aValue;
+    result = result + aValue;
     iPutInt(aDir, aKey, aKeyLen, result, aAttribute, aStoreType);
     return result;
 }
@@ -956,7 +958,7 @@ dStringArray* iSubkeys(const sds aDir, const char* aKey, const int aKeyLen, cons
 #include "testhelp.h"
 
 //Note: sds.* zmalloc.* config.h come from redis src
-//gcc --std=c99 -I. -Ideps  -o test -DIDB_HELPER_TEST_MAIN idb_helpers.c isdk_xattr.c isdk_utils.c deps/sds.c deps/zmalloc.c deps/utf8proc.c
+//gcc --std=c99 -I. -Ideps  -o test -DIDB_HELPER_TEST_MAIN idb_helpers.c isdk_xattr.c isdk_utils.c isdk_sds.c deps/sds.c deps/zmalloc.c deps/utf8proc.c
 void test_list(dStringArray* result, dCStrArray expected) {
         test_cond("List SHOULD NOT NULL", result);
         test_cond("List Length Test", darray_size(*result)==darray_size(expected));
@@ -983,6 +985,24 @@ static inline void test_getKey(sds aDir, const char* aKey, const char* aValue, c
               result && sdslen(result) == vValueSize && memcmp(result, aValue, vValueSize+1) == 0
     );
     sdsfree(result);
+    sdsfree(vMsg);
+}
+
+static inline void test_getInt(sds aDir, const char* aKey, long aValue, const sds aAttribute, int aStoreType)
+{
+    sds vMsg = sdsnew("");
+    long result = iGetInt(aDir, aKey, strlen(aKey), aAttribute, aStoreType);
+    vMsg = sdscatprintf(vMsg, "iGetInt('%s', '%s', %s, %d)", aDir, aKey, aAttribute, aStoreType);
+    test_cond(vMsg, result == aValue);
+    sdsfree(vMsg);
+}
+
+static inline void test_putInt(sds aDir, const char* aKey, long aValue, const sds aAttribute, int aStoreType, int aErrno)
+{
+    sds vMsg = sdsnew("");
+    vMsg = sdscatprintf(vMsg, "iPut('%s', '%s', '%lu', %s, %d)", aDir, aKey, aValue, aAttribute, aStoreType);
+    test_cond(vMsg, iPutInt(aDir, aKey, strlen(aKey), aValue, aAttribute, aStoreType) == aErrno);
+    if (aErrno == IDB_OK) test_getInt(aDir, aKey, aValue, aAttribute, aStoreType);
     sdsfree(vMsg);
 }
 static inline void test_putKey(sds aDir, const char* aKey, const char* aValue, const sds aAttribute, int aStoreType, int aErrno)
@@ -1174,6 +1194,12 @@ int main(int argc, char **argv)
         dStringArray_free(vList);
         darray_free(vExpectedList);
         puts("----------------------------");
+        test_cond("iDecr(NOTEXistsKey)", iDecr(x, "incr", 4, NULL, STORE_IN_FILE) == -1);
+        test_cond("iIncr(NOTEXistsKey)", iIncr(x, "decr", 4, NULL, STORE_IN_FILE) == 1);
+
+        test_putInt(x, "国家", 43, NULL, STORE_IN_FILE, IDB_OK);
+        test_getInt(x, "不存在", 0, NULL, STORE_IN_FILE);
+
  
         sdsfree(path);
         sdsfree(x);
