@@ -475,6 +475,48 @@ sds iGet(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttri
     return result;
 }
 
+long iGetInt(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType)
+{
+    long result = 0;
+    sds s = iGet(aDir, aKey, aKeyLen, aAttribute, aStoreType);
+    if (s) {
+         char* vEnd = NULL;
+         //strtol: convert str to long
+         //base 0 means the same syntax used for integer constants in C
+        result = strtol(s, &vEnd, 0);
+        sdsfree(s);
+    }
+    return result;
+}
+
+int iPutInt(const sds aDir, const char* aKey, const int aKeyLen, long aValue, const char *aAttribute, const int aStoreType)
+{
+    int result = 0;
+    sds s = sdsalloc(NULL, 10);
+    s = sdsprintf(s, "%lu", aValue);
+    result = iPut(aDir, aKey, aKeyLen, s, sdslen(s), aAttribute, aStoreType);
+    sdsfree(s);
+    return result;
+}
+
+long iIncrBy(const sds aDir, const char* aKey, const int aKeyLen, long aValue, const char *aAttribute, const int aStoreType)
+{
+    long result = iGetInt(aDir, aKey, aKeyLen, aAttribute, aStoreType);
+    result += aValue;
+    iPutInt(aDir, aKey, aKeyLen, result, aAttribute, aStoreType);
+    return result;
+}
+
+long iDecr(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType)
+{
+    return iIncrBy(aDir, aKey, aKeyLen, -1, aAttribute, aStoreType);
+}
+
+long iIncr(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType)
+{
+    return iIncrBy(aDir, aKey, aKeyLen, 1, aAttribute, aStoreType);
+}
+
 int iPutInFile(const sds aKeyPath, const char *aValue, const size_t aValueSize, const char *aAttribute, const TIDBProcesses aPartitionFullProcess)
 {
     sds vDir = NULL;

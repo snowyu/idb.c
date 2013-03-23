@@ -109,10 +109,15 @@
  sds iGetInFile(const sds aKeyPath, const char *aAttribute);
  sds iGetInXattr(const sds aKeyPath, const char *aAttribute);
  sds iGet(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType); //deprecated
+ long iGetInt(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType); //deprecated
+ long iIncrBy(const sds aDir, const char* aKey, const int aKeyLen, long aValue, const char *aAttribute, const int aStoreType);
+ long iDecr(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType);
+ long iIncr(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType);
  //result = 0 means ok, ENOEXEC means no operation, -1(PATH_IS_FILE) means the same file name exists error, 
  int iPutInFile(const sds aKeyPath, const char *aValue, const size_t aValueSize, const char *aAttribute, const TIDBProcesses aPartitionFullProcess);
  int iPutInXattr(const sds aKeyPath, const char *aValue, const size_t aValueSize, const char *aAttribute, const TIDBProcesses aPartitionFullProcess);
  int iPut(const sds aDir, const char* aKey, const int aKeyLen, const char *aValue, const size_t aValueSize, const char *aAttribute, const int aStoreType); //deprecated
+ int iPutInt(const sds aDir, const char* aKey, const int aKeyLen, long aValue, const char *aAttribute, const int aStoreType);
  bool iDeleleInFile(const sds aKeyPath, const char *aAttribute);
  bool iDeleleInXattr(const sds aKeyPath, const char *aAttribute);
  bool iDelele(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType); //deprecated
