@@ -953,6 +953,16 @@ dStringArray* iSubkeys(const sds aDir, const char* aKey, const int aKeyLen, cons
     return result;
 }
 
+size_t iAttrCountInFile(const sds aKeyPath, const char* aPattern)
+{
+  return _iAttrCount(aKeyPath, aPattern);
+}
+
+dStringArray *iAttrsInFile(const sds aKeyPath, const char* aPattern, size_t aSkipCount, size_t aCount)
+{
+  return ListDir(aKeyPath, aPattern, LIST_ALL_FILES, aSkipCount, aCount);
+}
+
 #ifdef IDB_HELPER_TEST_MAIN
 #include <stdio.h>
 #include "testhelp.h"

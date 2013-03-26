@@ -121,6 +121,10 @@
  bool iDeleleInFile(const sds aKeyPath, const char *aAttribute);
  bool iDeleleInXattr(const sds aKeyPath, const char *aAttribute);
  bool iDelele(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType); //deprecated
+ //get attributes count.
+ size_t iAttrCountInFile(const sds aKeyPath, const char* aPattern);
+ //get the list of attributes
+ dStringArray *iAttrsInFile(const sds aKeyPath, const char* aPattern, size_t aSkipCount, size_t aCount);
 
  //the key operations:
  //Make a new aAlias of the aKey
