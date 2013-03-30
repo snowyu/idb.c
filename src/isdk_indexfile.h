@@ -66,7 +66,7 @@ struct iIndexFile {
     uint32_t            count;                                  //the index file total items count.
     char                *path;                                  //the index file path.
     char                maxKey[IINDEX_MAX_KEY_SIZE];            //specified which is the max key of the index file.
-    DarrayIndexBlocks   blocks;                                 //the block0 is always in memory.
+    DarrayIndexBlocks   blocks;                                 //hold the blocks in the file.
 };
 typedef struct iIndexFile IndexFile;
 
