@@ -63,7 +63,7 @@
  //dkFixed: keep one, others remove the duplication key.
  //dkReserved: Keep all the keys includes the illegal duplication keys(with the original partition key path)
  typedef enum {dkIgnored, dkFixed, dkReserved, dkStopped} TIDBProcesses;
- typedef ssize_t(*WalkKeyHandler)(size_t aCount, const char* aDir, const char *aKey, const char *aSubkeyPart, const void *aUserPtr);
+ typedef ssize_t(*WalkKeyHandler)(size_t aCount, const char* aDir, const char *aKey, const char *aSubkeyPart, const void *aUserPti, const TIDBProcesses aDuplicationKeyProcess);
 
  struct __iDBBase {
     char            *path;                  //the iDB item path.
@@ -91,14 +91,23 @@
  //dkStopped: stopped and raise error.
  extern TIDBProcesses IDBPartitionFullProcess;//  = dkIgnored;
 
+ sds GetRelativePath(const char* aFrom, const int aFromLen, const char* aTo, const int aToLen);
+
  //Low-Level functions
- bool DelDirValue(const sds aDir, const char *aAttribute);
- bool IsDirValueExists(const sds aDir, const char *aAttribute);
+ bool DelDirValue(const char *aDir, const int aDirLen, const char *aAttribute);
+ bool IsDirValueExists(const char *aDir, const int aDirLen, const char *aAttribute);
  /* Get the value of the a Key(aDir) if successful, else return NULL
   * U must free the result after using it.
   */
- sds GetDirValue(const sds aDir, const char *aAttribute);
- bool SetDirValue(const sds aDir, const char *aValue, const size_t aValueSize, const char *aAttribute);
+ sds GetDirValue(const char *aDir, const int aDirLen, const char *aAttribute);
+ bool SetDirValue(const char *aDir, const int aDirLen, const char *aValue, const size_t aValueSize, const char *aAttribute);
+ int64_t IncrByDirValue(const char *aDir, const int aDirLen, const int64_t aValue, const char *aAttribute);
+
+ //return the real dir if such key exists, or return NULL
+ //Note: the aKeyPath string space will be reused.
+ sds iIsKeyDirExists(sds aKeyPath);
+ //Find a proper dir name to save the partition key.
+ sds iFindKeyDirToPut(sds aDir, const int aMaxItemCount, const TIDBProcesses aPartitionFullProcess);
 
 
  //the atrribute operations:
@@ -109,15 +118,16 @@
  sds iGetInFile(const sds aKeyPath, const char *aAttribute);
  sds iGetInXattr(const sds aKeyPath, const char *aAttribute);
  sds iGet(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType); //deprecated
- long iGetInt(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType); //deprecated
- long iIncrBy(const sds aDir, const char* aKey, const int aKeyLen, long aValue, const char *aAttribute, const int aStoreType);
- long iDecr(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType);
- long iIncr(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType);
+ int64_t iGetInt(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType); //deprecated
+ int64_t iIncrBy(const sds aDir, const char* aKey, const int aKeyLen, long aValue, const char *aAttribute, const int aStoreType);
+ int64_t iDecr(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType);
+ int64_t iIncr(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType);
+ int64_t iIncrByInFile(const sds aKeyPath, int64_t aValue, const char *aAttribute, const TIDBProcesses aPartitionFullProcess);
  //result = 0 means ok, ENOEXEC means no operation, -1(PATH_IS_FILE) means the same file name exists error, 
  int iPutInFile(const sds aKeyPath, const char *aValue, const size_t aValueSize, const char *aAttribute, const TIDBProcesses aPartitionFullProcess);
  int iPutInXattr(const sds aKeyPath, const char *aValue, const size_t aValueSize, const char *aAttribute, const TIDBProcesses aPartitionFullProcess);
  int iPut(const sds aDir, const char* aKey, const int aKeyLen, const char *aValue, const size_t aValueSize, const char *aAttribute, const int aStoreType); //deprecated
- int iPutInt(const sds aDir, const char* aKey, const int aKeyLen, long aValue, const char *aAttribute, const int aStoreType);
+ int iPutInt(const sds aDir, const char* aKey, const int aKeyLen, int64_t aValue, const char *aAttribute, const int aStoreType);
  bool iDeleleInFile(const sds aKeyPath, const char *aAttribute);
  bool iDeleleInXattr(const sds aKeyPath, const char *aAttribute);
  bool iDelele(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType); //deprecated
@@ -140,11 +150,11 @@
  //aPattern = NULL means match all subkeys
  //return -1 means error, the errno is error code.
  ssize_t iSubkeyWalk(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern,
-        size_t aSkipCount, size_t aCount, const WalkKeyHandler aProcessor, const void *aUserPtr);
+        size_t aSkipCount, size_t aCount, const WalkKeyHandler aProcessor, const void *aUserPtr, const TIDBProcesses aDuplicationKeyProcess);
  //return NULL means error.
- dStringArray* iSubkeys(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern, const int aSkipCount, const int aCount);
+ dStringArray* iSubkeys(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern, const size_t aSkipCount, const size_t aCount, const TIDBProcesses aDuplicationKeyProcess);
  //all keys count(include partition).
- ssize_t iSubkeyTotal(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern);
+ ssize_t iSubkeyTotal(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern, const TIDBProcesses aDuplicationKeyProcess);
  //current normal keys count(no partition).
  static inline size_t iSubkeyCount(const sds aKeyPath, const char* aPattern)
  {
