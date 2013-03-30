@@ -35,30 +35,38 @@
 
  #include "idb_helpers.h"
 
+#define IDB_WORKING_DIR_SUPPORT 1
 
 //the simple types:
 #define IDB_STR_TYPE        0x00
-#define IDB_NUM_TYPE        0x01
+#define IDB_INT_TYPE        0x01
+#define IDB_FLOAT_TYPE      0x02
 //the complex types:
 #define IDB_DICT_TYPE       0x20
 #define IDB_LIST_TYPE       0x21
+
+
 #define IDB_STR_TYPE_NAME   "string"
-#define IDB_NUM_TYPE_NAME   "number"
+#define IDB_NUM_TYPE_NAME   "integer"
+#define IDB_FLOAT_TYPE_NAME  "float"
 #define IDB_DICT_TYPE_NAME  "dict"
 #define IDB_LIST_TYPE_NAME  "list"
+#define IDB_ATTR_COUNT_NAME ".count"
 
+#define ERR_IDB_CLOSED   -1
 
  #ifdef __cplusplus
  extern "C"
   {
  #endif
 
+/*
 struct __iBaseItem {
   char      *path;                  //the iDB item path.
   bool      loadOnDemand;
   size_t    maxPageSize;            //the max page count for the subkeys
-  bool      storeInXattr;           //enabled the xattr storage.
-  bool      storeInFile;            //enabled the file storage.
+  //bool      storeInXattr;           //enabled the xattr storage.
+  //bool      storeInFile;            //enabled the file storage.
   bool      raiseOnTypeMismatch;    //raise error if Type Mismatch when true
 };
 typedef struct __iBaseItem iBaseItem;
@@ -72,8 +80,8 @@ struct __iItem {
       char      *path;                  //the iDB item path.
       bool      loadOnDemand;
       size_t    maxPageSize;            //the max page count for the subkeys
-      bool      storeInXattr;           //enabled the xattr storage.
-      bool      storeInFile;            //enabled the file storage.
+      //bool      storeInXattr;           //enabled the xattr storage.
+      //bool      storeInFile;            //enabled the file storage.
       bool      raiseOnTypeMismatch;    //raise error if Type Mismatch when true
     //--------------------------------------------------------------------
   #endif
@@ -81,22 +89,19 @@ struct __iItem {
     char *value;            //the Item value.
 };
 typedef struct __iItem iItem;
-
+*/
 
 struct __iDB {
-    //inheritance from iBaseItem:
-  #ifdef _ANONYMOUS_STRUCT
-    struct __iBaseItem;  //the anonymous-structs, only avaiable on C11: gcc -fms-extensions to enable it.
-  #else
-    //--------------------------------------------------------------------
+   //--------------------------------------------------------------------
       char      *path;                  //the iDB item path.
       bool      loadOnDemand;
       size_t    maxPageSize;            //the max page count for the subkeys
-      bool      storeInXattr;           //enabled the xattr storage.
-      bool      storeInFile;            //enabled the file storage.
+      //bool      storeInXattr;           //enabled the xattr storage.
+      //bool      storeInFile;            //enabled the file storage.
+      TIDBProcesses partitionFullProcess; //the way to process when partition is full
+      TIDBProcesses duplicationKeyProcess;
       bool      raiseOnTypeMismatch;    //raise error if Type Mismatch when true
     //--------------------------------------------------------------------
-  #endif
     bool opened;                  //whether the internal database is opened
 };
 typedef struct __iDB iDB;
@@ -112,7 +117,18 @@ void  iDB_Free(void *aDB);
 //  If successful, the return value is true, else, it is false.
 bool  iDB_Open(void *aDB, sds aDBPath);
 bool  iDB_Close(void *aDB);
+void  iDB_SetOpened(void *aDB, bool aOpened);
 
+sds  iDB_GetString(void *aDB, const void *aKey, int aKeySize);
+int64_t iDB_GetInteger(void *aDB, const void *aKey, int aKeySize);
+//get the key type name.
+sds  iDB_TypeName(void *aDB, const void *aKey, int aKeySize);
+int iDB_PutString(void *aDB, const void *aKey, int aKeySize, const void *aValue, int aValueSize);
+sds  iDBAttr_GetString(void *aDB, const void *aKey, int aKeySize, const char *aAttribute);
+int64_t iDBAttr_GetInteger(void *aDB, const void *aKey, int aKeySize, const char *aAttribute);
+int64_t iDBAttr_IncrBy(void *aDB, const void *aKey, int aKeySize, int64_t aValue, const char *aAttribute);
+int iDBAttr_PutString(void *aDB, const void *aKey, int aKeySize, const void *aValue, int aValueSize, const char *aAttribute);
+dStringArray *iDB_Subkeys(void *aDB, const void *aKey, int aKeySize, const char* aPattern, const size_t aPageNo, size_t aPageSize);
 
 //low-level operations:
 //Get the type of a key

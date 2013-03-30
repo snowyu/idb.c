@@ -36,7 +36,6 @@
 //#include <dirname.h> /* last_component */
 
 #include "deps/zmalloc.h"
-//#include "idb.h"
 
 
 //create a database object.
@@ -46,8 +45,11 @@ void* iDB_New(void){
     if (result != NULL) {
         result->opened       = false;
         result->loadOnDemand = true;
+        result->maxPageSize  = 0;
+        /*
         result->storeInFile  = true;
         result->storeInXattr = false;
+        */
         result->path         = NULL;
     }
     return result;
@@ -55,20 +57,34 @@ void* iDB_New(void){
 
 //free a iDB Database object.
 void iDB_Free(void *aDB){
-    if (aDB){
-        register iDB* vDB = aDB;
+    register iDB* vDB = aDB;
+    if (vDB){
         if (vDB->opened) iDB_Close(aDB);
         zfree(aDB);
     }
 };
+
+void iDB_SetOpened(void *aDB, bool aOpened)
+{
+    register iDB* vDB = aDB;
+    vDB->opened = aOpened && vDB->path;
+    if (vDB->opened) {
+        #ifdef IDB_WORKING_DIR_SUPPORT
+        vDB->opened = chdir(vDB->path) == 0;
+        #else
+        vDB->opened = true;
+        #endif
+        if (vDB->maxPageSize > IDBMaxPageCount) vDB->maxPageSize = IDBMaxPageCount;
+    }
+}
 
 bool  iDB_Open(void *aDB, const sds aDBPath){
     assert(aDB && aDBPath);
     register iDB* vDB = aDB;
     if (!vDB->opened) {
         vDB->path         = sdsdup(aDBPath);
-        vDB->opened       = true;
-        return   true;
+        iDB_SetOpened(vDB, vDB->opened);
+        return   vDB->opened;
     }
     else
         return false;
@@ -88,68 +104,153 @@ bool  iDB_Close(void *aDB){
         return false;
 };
 
+static inline sds _iDBAttr_GetString(iDB *aDB, const void *aKey, int aKeySize, const char *aAttribute)
+{
+    sds vKeyPath, result = NULL;
+    #ifdef IDB_WORKING_DIR_SUPPORT
+    vKeyPath = sdsnewlen(aKey, aKeySize);
+    #else
+    vKeyPath = sdsJoinPathLen(sdsdup(aDB->path), aKey, aKeySize);
+    #endif
+    result = iGetInFile(vKeyPath, aAttribute);
+    sdsfree(vKeyPath);
+    return result;
+};
 
+sds iDBAttr_GetString(void *aDB, const void *aKey, int aKeySize, const char *aAttribute)
+{
+    sds result = NULL;
+    register iDB* vDB = aDB;
+    errno = 0;
+    if (vDB->opened) {
+        result = _iDBAttr_GetString(vDB, aKey, aKeySize, aAttribute);
+    }
+    else
+        errno = ERR_IDB_CLOSED;
+    return result;
+};
+
+static inline int64_t _iDBAttr_IncrBy(iDB *aDB, const void *aKey, int aKeySize, int64_t aValue, const char *aAttribute)
+{
+    int64_t result = ERR_IDB_CLOSED;
+    sds vKeyPath;
+    #ifdef IDB_WORKING_DIR_SUPPORT
+    vKeyPath = sdsnewlen(aKey, aKeySize);
+    #else
+    vKeyPath = sdsJoinPathLen(sdsdup(aDB->path), aKey, aKeySize);
+    #endif
+    result = iIncrByInFile(vKeyPath, aValue, aAttribute, aDB->partitionFullProcess);
+    sdsfree(vKeyPath);
+    return result;
+}
+
+int64_t iDBAttr_IncrBy(void *aDB, const void *aKey, int aKeySize, int64_t aValue, const char *aAttribute)
+{
+    register iDB* vDB = aDB;
+    int64_t result = ERR_IDB_CLOSED;
+    errno = 0;
+    sds vKeyPath;
+    if (vDB->opened) {
+        result = _iDBAttr_IncrBy(vDB, aKey, aKeySize, aValue, aAttribute);
+    }
+    else
+        errno = ERR_IDB_CLOSED;
+    return result;
+}
+
+static inline int _iDBAttr_PutString(iDB *aDB, const void *aKey, int aKeySize, const void *aValue, int aValueSize, const char *aAttribute)
+{
+    sds vDir, s;
+    int result, vLevel=0;
+    #ifdef IDB_WORKING_DIR_SUPPORT
+    vDir = sdsnewlen(aKey, aKeySize);
+    if (sdslen(vDir) == 0) vDir = sdscpylen(vDir, ".", 1);
+    #else
+    vDir = sdsJoinPathLen(sdsdup(vDB->path), aKey, aKeySize);
+    #endif
+    result = DirectoryExists(vDir); //a/b/c/d
+    if (result == PATH_IS_NOT_EXISTS) {
+        //prepare for increment subkeys' count
+        s = sdsdup(vDir);
+        RemoveLastPathName(s); //the parent key /a/b/c
+        #ifdef IDB_WORKING_DIR_SUPPORT
+        result = 0;
+        #else
+        result = sdslen(aDB->path);
+        #endif
+        while (sdslen(s) > result && DirectoryExists(s) == PATH_IS_NOT_EXISTS) {
+            vLevel++;
+            RemoveLastPathName(s);
+        }
+        sdsfree(s);
+    }
+    result = iPutInFile(vDir, aValue, aValueSize, aAttribute, aDB->partitionFullProcess);
+    if (result == 0) {
+            //successful, now increment the subkeys' count
+            RemoveLastPathName(vDir); //get the parent
+            while (vLevel > 0) {
+                iIncrByInFile(vDir, 1, IDB_ATTR_COUNT_NAME, aDB->partitionFullProcess);
+                //and put it to index
+                RemoveLastPathName(vDir);
+                vLevel--;
+            }
+            #ifdef IDB_WORKING_DIR_SUPPORT
+            if (sdslen(vDir)==0) vDir = sdscpylen(vDir, ".", 1);
+            #endif
+            iIncrByInFile(vDir, 1, IDB_ATTR_COUNT_NAME, aDB->partitionFullProcess);
+    }
+    if (vDir) sdsfree(vDir);
+    
+    return result;
+
+}
+
+int iDBAttr_PutString(void *aDB, const void *aKey, int aKeySize, const void *aValue, int aValueSize, const char *aAttribute)
+{
+}
+
+sds  iDB_GetString(void *aDB, const void *aKey, int aKeySize)
+{
+    return iDBAttr_GetString(aDB, aKey, aKeySize, NULL);
+}
+
+int iDB_PutString(void *aDB, const void *aKey, int aKeySize, const void *aValue, int aValueSize)
+{
+    return iDBAttr_PutString(aDB, aKey, aKeySize, aValue, aValueSize, NULL);
+}
+
+dStringArray *iDB_Subkeys(void *aDB, const void *aKey, int aKeySize, const char* aPattern, const size_t aPageNo, size_t aPageSize)
+{
+    register iDB* vDB = aDB;
+    dStringArray *result = NULL;
+    errno = 0;
+    sds vKeyPath;
+    if (vDB->opened) {
+        #ifdef IDB_WORKING_DIR_SUPPORT
+        vKeyPath = sdsnewlen(".", 1);
+        #else
+        vKeyPath = vDB->path;
+        #endif
+        if (aPageSize > vDB->maxPageSize) aPageSize = vDB->maxPageSize;
+        result = iSubkeys(vKeyPath, aKey, aKeySize, aPattern, aPageNo * aPageSize, aPageSize, vDB->partitionFullProcess);
+        #ifdef IDB_WORKING_DIR_SUPPORT
+        sdsfree(vKeyPath);
+        #endif
+    }
+    else
+        errno = ERR_IDB_CLOSED;
+    return result;
+}
 
 #ifdef IDB_TEST_MAIN
 #include "testhelp.h"
 
-typedef void* Pointer;
-typedef int Integer;
-
-#define DefineContainer(type, name) typedef type* D##name
-#define DefineArray(type) DefineContainer(type, type##Array)
-
-struct _ContainerHeader {
-    size_t len;
-    size_t free;
-    //Pointer buf[];
-    char* buf[];
-};
-#define ContainerHeaderSize sizeof(struct _ContainerHeader)
-
-static inline Pointer _DNewDup(void* init, size_t initlen)
-{
-    struct _ContainerHeader *h;
-    if (init) {
-        h = zmalloc(ContainerHeaderSize+initlen);
-    } else {
-        h = zcalloc(ContainerHeaderSize+initlen);
-    }
-    if (h == NULL) return NULL;
-    h->len = initlen;
-    h->free = 0;
-    if (initlen && init)
-        memcpy(h->buf, init, initlen);
-    return (Pointer)h->buf;
-
-}
-#define DNewDup(type, name) static inline type* DNew##type##nameDup(type* init, size_t initlen) {return (type*)_DNewDup(init, sizeof(type)*initlen);}
-#define DNew(type, name) static inline type* DNew##type##name(){return (type*) _DNewDup(NULL, 0);}
-
-DNew(Integer, Array);
-
-DefineArray(Integer);
 
 //Note: sds.* zmalloc.* config.h come from redis src
-//gcc -fms-extensions --std=c99 -I. -Ideps -o test -DHAVE_UNISTD_H -DIDB_TEST_MAIN idb.c idb_helpers.c isdk_xattr.c isdk_utils.c deps/sds.c deps/zmalloc.c deps/filename.c deps/adlist.c
+//gcc -fms-extensions --std=c99 -I. -Ideps -o test -DIDB_TEST_MAIN idb.c idb_helpers.c isdk_xattr.c isdk_utils.c isdk_sds.c deps/sds.c deps/zmalloc.c deps/utf8proc.c deps/filename.c deps/adlist.c
 int main(int argc, char **argv)
 {
     {
-        DIntegerArray my = DNewIntegerArray();
-
-        typedef void* Ptr;
-        Ptr a[] = {0xAA221111, 0xFFFF5678};
-        printf("%lx,%lx\n", (long)a[0], (long)a[1]);
-        sds d= sdsnew("mylink");
-        struct stat st;
-        int result = IsDirectory(d);
-        printf("result=%d\n", result);
-
-
-        sds v= sdsnew("testdir/god/better/best\n");
-        char const *b = last_component(v);
-        printf("last_component=%s", b);
-        sdsfree(v);
 /*
         ForceDirectories("testdir/good/better/best", O_RWXRWXR_XPERMS);
         test_cond("DirectoryExists('testdir/good/better/best')", DirectoryExists("testdir/good/better/best") == 1);
