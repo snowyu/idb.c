@@ -327,6 +327,26 @@ static inline ssize_t IterateUtf8Char(const char* aUtf8Str, ssize_t aStrLen, cha
     return vLen;
 }
 
+static inline void RemoveLastPathName(sds aDir)
+{
+    ssize_t vLen = sdslen(aDir);
+    while (aDir[vLen-1] == PATH_SEP) {
+        vLen--;
+        sdsSetlen_(aDir, vLen);
+    }
+    char* s = strrchr(aDir, PATH_SEP);
+    if (s != NULL) {
+        s++;
+    } else {
+        s = aDir;
+    }
+    vLen = strlen(s);
+    if (vLen > 0) {
+        //remove the last part path name from aDir.
+        sdsIncrLen(aDir, -vLen);
+    }
+}
+
 static inline sds ExtractLastPathName(const sds aDir)
 {
     ssize_t vLen = sdslen(aDir);
@@ -348,6 +368,27 @@ static inline sds ExtractLastPathName(const sds aDir)
         sdsIncrLen(aDir, -vLen);
     }
     return vLastPath;
+}
+
+//=2^n
+static inline uint32_t ipow2(int n)
+{
+    return 1 << n;
+}
+
+//=base^n
+static inline uint32_t ipow(int base, int n)
+{
+    uint32_t result = 1;
+    while (n)
+    {
+        if (n & 1)
+            result *= base;
+        n >>= 1;
+        base *= base;
+    }
+
+    return result;
 }
 
  #ifdef __cplusplus
