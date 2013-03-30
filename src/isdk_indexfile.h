@@ -8,9 +8,9 @@
  *      Item: a fixed length data which includes the key and value.
  *          both the key and value are fixed length.
  *      Block: a block contains a group of items. the count of items in the level 0 block means block size.
- *      Block(n): a Level of blocks. Size(n) = LevelBase^n
+ *      Block(n): a Level of blocks. Size(n) = BlockBase^n
  *              one level can contain how many items, n is level number(0..MaxBlock-1) :
- *                  LevelBase^n*BlockSize
+ *                  BlockBase^n*BlockSize
  *              the block(0) is in the memory, and block(1..MaxBlock-1) is on the disk.
  *      MaxBlock: the index can hold how many blocks.
  *      BlockBase: must be 2^n, 2, 4, 8, the default is 4.
