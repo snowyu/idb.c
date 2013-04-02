@@ -213,4 +213,55 @@
 #endif
 #endif
 
+
+#define SWAB16(aNumber) \
+  ( \
+   ((aNumber & 0x00ffU) << 8) | \
+   ((aNumber & 0xff00U) >> 8) \
+  )
+
+#define SWAB32(aNumber) \
+  ( \
+   ((aNumber & 0x000000ffUL) << 24) | \
+   ((aNumber & 0x0000ff00UL) << 8) | \
+   ((aNumber & 0x00ff0000UL) >> 8) | \
+   ((aNumber & 0xff000000UL) >> 24) \
+  )
+
+#define SWAB64(aNumber) \
+  ( \
+   ((aNumber & 0x00000000000000ffULL) << 56) | \
+   ((aNumber & 0x000000000000ff00ULL) << 40) | \
+   ((aNumber & 0x0000000000ff0000ULL) << 24) | \
+   ((aNumber & 0x00000000ff000000ULL) << 8) | \
+   ((aNumber & 0x000000ff00000000ULL) >> 8) | \
+   ((aNumber & 0x0000ff0000000000ULL) >> 24) | \
+   ((aNumber & 0x00ff000000000000ULL) >> 40) | \
+   ((aNumber & 0xff00000000000000ULL) >> 56) \
+  )
+
+/* variants of the function doing the actual convertion only if the target
+ * host is big endian */
+#if (BYTE_ORDER == LITTLE_ENDIAN)
+#define MemRev16ifbe(p)
+#define MemRev32ifbe(p)
+#define MemRev64ifbe(p)
+#define IntRev16ifbe(v) (v)
+#define IntRev32ifbe(v) (v)
+#define IntRev64ifbe(v) (v)
+#define SetIntRev16IfBe(v)
+#define SetIntRev32IfBe(v)
+#define SetIntRev64IfBe(v)
+#else
+#define MemRev16ifbe(p) *(uint16_t *) p = SWAB16(*(uint16_t *) p)
+#define MemRev32ifbe(p) *(uint32_t *) p = SWAB32(*(uint32_t *) p)
+#define MemRev64ifbe(p) *(uint64_t *) p = SWAB64(*(uint64_t *) p)
+#define IntRev16ifbe(v) SWAB16(v)
+#define IntRev32ifbe(v) SWAB32(v)
+#define IntRev64ifbe(v) SWAB64(v)
+#define SetIntRev16IfBe(v) v = SWAB16(v)
+#define SetIntRev32IfBe(v) v = SWAB32(v)
+#define SetIntRev64IfBe(v) v = SWAB64(v)
+#endif
+
 #endif
