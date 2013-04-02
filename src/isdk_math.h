@@ -21,31 +21,6 @@
 #include <sys/time.h>
 #include <limits.h>
 
-#define SWAB16(aNumber) \
-  ( \
-   ((aNumber & 0x00ffU) << 8) | \
-   ((aNumber & 0xff00U) >> 8) \
-  )
-
-#define SWAB32(aNumber) \
-  ( \
-   ((aNumber & 0x000000ffUL) << 24) | \
-   ((aNumber & 0x0000ff00UL) << 8) | \
-   ((aNumber & 0x00ff0000UL) >> 8) | \
-   ((aNumber & 0xff000000UL) >> 24) \
-  )
-
-#define SWAB64(aNumber) \
-  ( \
-   ((aNumber & 0x00000000000000ffULL) << 56) | \
-   ((aNumber & 0x000000000000ff00ULL) << 40) | \
-   ((aNumber & 0x0000000000ff0000ULL) << 24) | \
-   ((aNumber & 0x00000000ff000000ULL) << 8) | \
-   ((aNumber & 0x000000ff00000000ULL) >> 8) | \
-   ((aNumber & 0x0000ff0000000000ULL) >> 24) | \
-   ((aNumber & 0x00ff000000000000ULL) >> 40) | \
-   ((aNumber & 0xff00000000000000ULL) >> 56) \
-  )
 
  #ifdef __cplusplus
  extern "C"
