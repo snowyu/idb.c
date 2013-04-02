@@ -87,7 +87,7 @@ bool IsDirValueExists(const char *aDir, const int aDirLen, const char *aAttribut
 //http://codewiki.wikidot.com/system-calls
 sds GetDirValue(const char *aDir, const int aDirLen, const char *aAttribute)
 {
-    int vSize;
+    off_t vSize;
     sds result = _make_attr_file_name(aDir, aDirLen, aAttribute);
     int fd = open(result, O_RDONLY);
     if (fd < 0) {
@@ -109,7 +109,7 @@ sds GetDirValue(const char *aDir, const int aDirLen, const char *aAttribute)
 //return true means ok. false means failed.
 bool SetDirValue(const char *aDir, const int aDirLen, const char *aValue, const size_t aValueSize, const char *aAttribute)
 {
-    int vSize;
+    off_t vSize;
     int result = false;
     sds vFile = _make_attr_file_name(aDir, aDirLen, aAttribute);
     int fd = open(vFile, O_WRONLY|O_TRUNC|O_CREAT, O_RW_RW_R__PERMS);
@@ -126,7 +126,7 @@ int64_t IncrByDirValue(const char *aDir, const int aDirLen, const int64_t aValue
 {
     int64_t result = 0;
     char* vEnd = NULL;
-    int vSize;
+    off_t vSize;
     sds vFile = _make_attr_file_name(aDir, aDirLen, aAttribute);
     int fd = open(vFile, O_RDWR|O_CREAT, O_RW_RW_R__PERMS);
     if (fd >= 0) {
