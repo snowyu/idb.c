@@ -180,7 +180,7 @@ sds sdsJoinPathLen(const sds aPath, const void *aPath2, const size_t len)
 
 
 /* Open named file without truncate or create safely */
-static int open_or_create_file(const char *file, int flags, mode_t perms)
+int open_or_create_file(const char *file, int flags, mode_t perms)
 {
     int fd = open(file, flags & ~O_EXCL_CREAT, perms);
     if (fd < 0)

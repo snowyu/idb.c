@@ -165,6 +165,13 @@ static inline ssize_t dCStrArray_indexOf(const dCStrArray* arr, const char* str)
     }
     return result;
 }
+static void darray_zfree_handler(void* aPtr)
+{
+    if (aPtr) {
+        zfree(aPtr);
+        aPtr = NULL;
+    }
+}
 
 
 /**
@@ -216,7 +223,7 @@ typedef int(*FTSWalkDirHandler)(int aCount,const void *aNode, void *aPtr);
 typedef ssize_t(*WalkDirHandler)(size_t aCount, const char *aDir, const Dirent *aItem, void *aUserPtr);
 
 /* Open named file without truncate or create safely */
-static int open_or_create_file(const char *file, int flags, mode_t perms);
+int open_or_create_file(const char *file, int flags, mode_t perms);
 
 //Move aSrc file or dir to aDest
 //Must be in a same file system.
