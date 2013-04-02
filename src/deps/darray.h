@@ -56,6 +56,7 @@
  *
  * Insertion (single item):
  *
+ *     void   darray_insert(darray(T) arr, size_t index, T item); //insert a item before index
  *     void   darray_append(darray(T) arr, T item);
  *     void   darray_prepend(darray(T) arr, T item);
  *     void   darray_push(darray(T) arr, T item); // same as darray_append
@@ -74,6 +75,7 @@
  *
  * Removal:
  *
+ *     void   darray_del(darray(T) arr, size_t index);
  *     T      darray_pop(darray(T) arr | darray_size(arr) != 0);
  *     T*     darray_pop_check(darray(T*) arr);
  *
@@ -123,7 +125,9 @@
 
 /*** Life cycle ***/
 
-#define darray(type) struct {type *item; size_t size; size_t alloc;void (*onFree)(void *ptr);}
+typedef void (*DarrayFreeHandler) (void *ptr);
+
+#define darray(type) struct {type *item; size_t size; size_t alloc; DarrayFreeHandler onFree;}
 
 #define darray_new() {0,0,0,0}
 #define darray_init(arr) do {(arr).item=0; (arr).size=0; (arr).alloc=0;(arr).onFree=NULL;} while(0)
@@ -180,6 +184,11 @@ typedef darray(unsigned long)  darray_ulong;
 
 /*** Insertion (single item) ***/
 
+#define darray_insert(arr, index, ...) do { \
+		darray_resize(arr, (arr).size+1); \
+        memmove((arr).item+index+1, (arr).item+index, ((arr).size-index)*sizeof(*(arr).item));\
+		(arr).item[index] = (__VA_ARGS__); \
+	} while(0)
 #define darray_append(arr, ...) do { \
 		darray_resize(arr, (arr).size+1); \
 		(arr).item[(arr).size-1] = (__VA_ARGS__); \
@@ -239,6 +248,10 @@ typedef darray(unsigned long)  darray_ulong;
 
 /*** Removal ***/
 
+#define darray_del(arr, index) do { \
+        memmove((arr).item+index, (arr).item+index+1, ((arr).size-index-1)*sizeof(*(arr).item));\
+		(arr).size--; \
+	} while(0)
 /* Warning: Do not call darray_pop on an empty darray. */
 #define darray_pop(arr) ((arr).item[--(arr).size])
 #define darray_pop_check(arr) ((arr).size ? darray_pop(arr) : NULL)
