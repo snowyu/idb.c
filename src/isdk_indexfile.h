@@ -14,7 +14,7 @@
  *              the block(0) is in the memory, and block(1..MaxBlock-1) is on the disk.
  *      MaxBlockCount: the index file can hold how many blocks.
  *      BlockBase: must be 2^n, 2, 4, 8, the default is 4.
- *      IndexFile: IndexDBFileHeader + IndexDBBlockHeader + Blocks
+ *      IndexFile: Header(IndexDBFileHeader + IndexDBBlockHeader) + Blocks
  *
  *        Version:  1.0
  *        Created:  2013/03/29
@@ -44,6 +44,7 @@
 #define IINDEX_FILE_VER         0                       //the current IndexFile version
 #define IINDEX_MAX_CACHE_SIZE   1024*4
 #define IINDEX_DELETED_FLAG     1
+#define IINDEX_SPLIT_COUNT      3
 
 #define IINDEX_ERR_ALREADY_OPENED   -1
 #define IINDEX_ERR_INVALID_FILE     -2
@@ -72,9 +73,9 @@ typedef darray(IndexDBItem)      DarrayIndexItems;
 
 struct iIndexDBBlockHeader {
     uint32_t    count;              //the current used items count
-    char        isFull;             //the block is full or not
-    char        reserved;
-    uint16_t    reserved2;
+    //char        isFull;             //the block is full or not
+    //char        reserved;
+    //uint16_t    reserved2;
     char        maxKey[IINDEX_MAX_KEY_SIZE]; //which key is the max key of this block
 };
 typedef struct iIndexDBBlockHeader IndexDBBlockHeader;
@@ -97,6 +98,9 @@ struct iIndexDBFileHeader {
   uint64_t    magicFlag;                              //"iIdxFile"
   uint32_t    version;
   uint32_t    reserved;
+  char        isFull;
+  char        reserved2;
+  uint16_t    reserved3;
   uint32_t    maxBlockCount;                          //this index file can hold how many blocks maximum.
   uint32_t    blockCount;                             //current used count of blocks
   uint32_t    blockSize;                              //a block can hold how many items, the default is IINDEX_BLOCK_SIZE

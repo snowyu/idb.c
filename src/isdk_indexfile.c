@@ -52,6 +52,85 @@ uint32_t IndexDBFile_SizeOfHeader(PIndexDBFile self)
     return self->headerSize;
 }
 
+static inline void IndexDBFileHeader_ConvertEndianIfBe(PIndexDBFileHeader self)
+{
+    SetIntRev32IfBe(self->version);
+    SetIntRev32IfBe(self->maxBlockCount);
+    SetIntRev32IfBe(self->blockCount);
+    SetIntRev32IfBe(self->blockSize);
+}
+static inline void IndexDBBlockHeader_ConvertEndianIfBe(PIndexDBBlockHeader self)
+{
+    SetIntRev32IfBe(self->count);
+}
+
+static inline void IndexDBFile_BlocksConvertEndianIfBe(PIndexDBFile self)
+{
+#if (BYTE_ORDER == BIG_ENDIAN)
+    uint32_t i;
+    for (i = 0; i < self->header.blockCount; i++) {
+        IndexDBBlockHeader_ConvertEndianIfBe(self->blockHeaders[i]);
+    }
+#endif
+}
+
+bool IndexDBFile_WriteBlockHeaders(PIndexDBFile self)
+{
+    off_t vOffset, vSize;
+
+    if (self->fd < 0) self->fd = open(self->path, O_RDWR);
+    if (self->fd >= 0) {
+        vOffset = sizeof(IndexDBFileHeader);
+        vSize = lseek(self->fd, vOffset, SEEK_SET);
+        if (vSize == vOffset) {
+            vSize = self->header.maxBlockCount * sizeof(IndexDBBlockHeader);
+            IndexDBFile_BlocksConvertEndianIfBe(self);
+            vOffset = write(self->fd, self->blockHeaders, vSize);
+            IndexDBFile_BlocksConvertEndianIfBe(self);
+            assert(vOffset == vSize);
+            if (vOffset == vSize) return true;
+        }
+    }
+    return false;
+}
+bool IndexDBFile_WriteBlockHeader(PIndexDBFile self, const uint32_t aBlockId)
+{
+    off_t vOffset, vSize;
+
+    if (self->fd < 0) self->fd = open(self->path, O_RDWR);
+    if (self->fd >= 0) {
+        vOffset = sizeof(IndexDBFileHeader)+aBlockId*sizeof(IndexDBBlockHeader);
+        vSize = lseek(self->fd, vOffset, SEEK_SET);
+        if (vSize == vOffset) {
+            vSize = sizeof(IndexDBBlockHeader);
+            IndexDBBlockHeader_ConvertEndianIfBe(self->blockHeaders[aBlockId]);
+            vOffset = write(self->fd, &self->blockHeaders[aBlockId], vSize);
+            IndexDBBlockHeader_ConvertEndianIfBe(self->blockHeaders[aBlockId]);
+            assert(vOffset == vSize);
+            if (vOffset == vSize) return true;
+        }
+    }
+    return false;
+}
+
+bool IndexDBFile_WriteFileHeader(PIndexDBFile self)
+{
+    off_t vOffset, vSize;
+
+    if (self->fd < 0) self->fd = open(self->path, O_RDWR);
+    if (self->fd >= 0) {
+        lseek(self->fd, 0L, SEEK_SET);
+        vSize = sizeof(IndexDBFileHeader);
+        IndexDBFileHeader_ConvertEndianIfBe(&self->header);
+        vOffset = write(self->fd, &self->header, vSize);
+        IndexDBFileHeader_ConvertEndianIfBe(&self->header);
+    }
+}
+bool IndexDBFile_WriteHeader(PIndexDBFile self)
+{
+    bool result = IndexDBFile_WriteFileHeader(self);
+    if (result) result = IndexDBFile_WriteBlockHeaders(self);
+}
 //static void darray_iBlock_free_handler(IndexDBBlock aBlock)
 //{
 //    if (aBlock.items) zfree(aBlock.items);
@@ -62,11 +141,13 @@ static inline off_t IndexDBFile_CalcBlockOffset(PIndexDBFile self, uint32_t aBlo
 }
 
 static inline bool IndexDBFile_IsFull(PIndexDBFile self) {
-    return self->count >= self->header.blockCount*self->header.blockSize;
+    return self->header.isFull;
+    //return self->count >= self->header.blockCount*self->header.blockSize;
 }
 
 void IndexDBFile_Init(PIndexDBFile self) {
     self->fd = -1;
+    self->header.isFull = false;
     self->header.magicFlag    = *IINDEX_MAGIC_FLAG;
     self->header.version      = IINDEX_FILE_VER;
     self->header.reserved     = 0;
@@ -93,30 +174,9 @@ PIndexDBFile IndexDBFile_New()
 void IndexDBFile_Free(PIndexDBFile self)
 {
     IndexDBFile_Close(self);
-    if (self->blockHeaders) zfree(self->blockHeaders);
+    if (self->path) sdsfree(self->path);
+    //if (self->blockHeaders) zfree(self->blockHeaders);
     zfree(self);
-}
-
-static inline void IndexDBFileHeader_ConvertEndianIfBe(PIndexDBFileHeader self)
-{
-    SetIntRev32IfBe(self->version);
-    SetIntRev32IfBe(self->maxBlockCount);
-    SetIntRev32IfBe(self->blockCount);
-    SetIntRev32IfBe(self->blockSize);
-}
-static inline void IndexDBBlockHeader_ConvertEndianIfBe(PIndexDBBlockHeader self)
-{
-    SetIntRev32IfBe(self->count);
-}
-
-static inline void IndexDBFile_BlocksConvertEndianIfBe(PIndexDBFile self)
-{
-#if (BYTE_ORDER == BIG_ENDIAN)
-    uint32_t i;
-    for (i = 0; i < self->header.blockCount; i++) {
-        IndexDBBlockHeader_ConvertEndianIfBe(self->blockHeaders[i]);
-    }
-#endif
 }
 
 int IndexDBFile_Open(PIndexDBFile self) {
@@ -160,6 +220,7 @@ int IndexDBFile_Open(PIndexDBFile self) {
             }
             else {
                 self->blockHeaders = zcalloc(self->header.maxBlockCount*sizeof(IndexDBBlockHeader));
+                IndexDBFile_WriteHeader(self);
                 if (vFileSize)
                     warnx("%s is not a valid IndexDBFile, treat it as empty.", self->path);
             }
@@ -188,7 +249,14 @@ void IndexDBFile_Close(PIndexDBFile self) {
     if (self->opened) {
         self->opened = false;
     }
-
+    if (self->fd >= 0) {
+        close(self->fd);
+        self->fd = -1;
+    }
+    if (self->blockHeaders) {
+        zfree(self->blockHeaders);
+        self->blockHeaders = NULL;
+    }
 }
 
 ssize_t IndexDBFile_GetBlockId(PIndexDBFile self, const char *aKey)
@@ -202,46 +270,6 @@ ssize_t IndexDBFile_GetBlockId(PIndexDBFile self, const char *aKey)
     //aKey > all blocks.maxKey
     result--;
     return result;
-}
-
-//internal method
-bool IndexDBFile_WriteBlockHeades(PIndexDBFile self)
-{
-    off_t vOffset, vSize;
-
-    if (self->fd < 0) self->fd = open(self->path, O_RDWR);
-    if (self->fd >= 0) {
-        vOffset = sizeof(IndexDBFileHeader);
-        vSize = lseek(self->fd, vOffset, SEEK_SET);
-        if (vSize == vOffset) {
-            vSize = self->header.maxBlockCount * sizeof(IndexDBBlockHeader);
-            IndexDBFile_BlocksConvertEndianIfBe(self);
-            vOffset = write(self->fd, self->blockHeaders, vSize);
-            IndexDBFile_BlocksConvertEndianIfBe(self);
-            assert(vOffset == vSize);
-            if (vOffset == vSize) return true;
-        }
-    }
-    return false;
-}
-bool IndexDBFile_WriteBlockHeader(PIndexDBFile self, const uint32_t aBlockId)
-{
-    off_t vOffset, vSize;
-
-    if (self->fd < 0) self->fd = open(self->path, O_RDWR);
-    if (self->fd >= 0) {
-        vOffset = sizeof(IndexDBFileHeader)+aBlockId*sizeof(IndexDBBlockHeader);
-        vSize = lseek(self->fd, vOffset, SEEK_SET);
-        if (vSize == vOffset) {
-            vSize = sizeof(IndexDBBlockHeader);
-            IndexDBBlockHeader_ConvertEndianIfBe(self->blockHeaders[aBlockId]);
-            vOffset = write(self->fd, &self->blockHeaders[aBlockId], vSize);
-            IndexDBBlockHeader_ConvertEndianIfBe(self->blockHeaders[aBlockId]);
-            assert(vOffset == vSize);
-            if (vOffset == vSize) return true;
-        }
-    }
-    return false;
 }
 
 bool IndexDBFile_WriteBlock(PIndexDBFile self, const uint32_t aBlockId, IndexDBItem *aBlock)
@@ -350,6 +378,49 @@ ssize_t IndexDBFile_NewBlock(PIndexDBFile self)
     return result;
 }
 
+bool IndexDBFile_SplinterBlock(PIndexDBFile self, uint32_t aBlockId, IndexDBItem *aBlock)
+{
+    bool result;
+    int vSplit, vMod, i, vBlockId, vOldBlockCount;
+    IndexDBItem *vBlock;
+
+    if (self->header.blockCount + IINDEX_SPLIT_COUNT <= self->header.maxBlockCount)
+    {
+        vSplit = self->blockHeaders[aBlockId].count / IINDEX_SPLIT_COUNT;
+        vMod = self->blockHeaders[aBlockId].count % IINDEX_SPLIT_COUNT;
+        vBlock = zcalloc(INDEXDB_FILE_BLOCK_SIZE(self));
+        vOldBlockCount = self->header.blockCount;
+        for (i = 1; i < IINDEX_SPLIT_COUNT; i++) {
+            vBlockId = IndexDBFile_NewBlock(self);
+            if (vBlockId != -1) {
+                memcpy(vBlock, aBlock+vSplit*i+vMod, vSplit);
+                self->blockHeaders[vBlockId].count = vSplit;
+                strcpy(self->blockHeaders[vBlockId].maxKey, aBlock[vSplit*(i+1)+vMod-1].key);
+                result = IndexDBFile_WriteBlock(self, vBlockId, vBlock);
+            }
+            else {
+                result = false;
+            }
+            if (!result) break;
+        }
+        zfree(vBlock);
+        if (result) {
+            self->blockHeaders[aBlockId].count = vSplit + vMod;
+            strcpy(self->blockHeaders[aBlockId].maxKey, aBlock[vSplit+vMod-1].key);
+            result = IndexDBFile_WriteBlockHeader(self, aBlockId);
+        }
+        else {
+            self->header.blockCount = vOldBlockCount;
+        }
+    }
+    else {
+        self->header.isFull = true;
+        result = false;
+    }
+    return result;
+
+}
+
 bool IndexDBFile_SaveItem(PIndexDBFile self, IndexDBItem *aItem)
 {
     ssize_t vBlockId;
@@ -387,6 +458,7 @@ bool IndexDBFile_SaveItem(PIndexDBFile self, IndexDBItem *aItem)
     if (cmp > 0) {
         vBlock[i] = *aItem;
         self->blockHeaders[vBlockId].count++;
+        strcpy(self->blockHeaders[vBlockId].maxKey, aItem->key);
     }
     if (self->blockHeaders[vBlockId].count >= self->header.blockSize) {
         return IndexDBFile_SplinterBlock(self, vBlockId, vBlock);
@@ -608,7 +680,8 @@ typedef void*(*ThreadProcessor)(void* arg);
 void IndexDB_BgSave(IndexDB *self)
 {
     if (pthread_create(&self->thread_id, &self->thread_attr, (ThreadProcessor)IndexDB_DoSaveOnThread, self) != 0) {
-        //error, can not create thread
+        //error, can not create thread, So saving directly
+        IndexDB_SaveItems(self, self->cacheSaving);
         self->thread_id = 0;
     }
 }
