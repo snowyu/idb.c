@@ -37,14 +37,15 @@
 #define IINDEX_FILE_PATTERN     "*" IINDEX_EXT_NAME
 #define IINDEX_MAX_KEY_SIZE     256
 //Block size one block can contain how many items:
-#define IINDEX_BLOCK_SIZE       4*256
+#define IINDEX_BLOCK_SIZE       256 //1024*1024*4
 #define IINDEX_BLOCK_BASE       4
-#define IINDEX_MAX_BLOCK_COUNT  4
+#define IINDEX_MAX_BLOCK_COUNT  1024
+#define IINDEX_MAX_CACHE_SIZE   256 //1024*4
+#define IINDEX_SPLIT_COUNT      3
+
 #define IINDEX_MAGIC_FLAG       (uint64_t *) "iIdxFile"
 #define IINDEX_FILE_VER         0                       //the current IndexFile version
-#define IINDEX_MAX_CACHE_SIZE   1024*4
 #define IINDEX_DELETED_FLAG     1
-#define IINDEX_SPLIT_COUNT      3
 
 #define IINDEX_ERR_ALREADY_OPENED   -1
 #define IINDEX_ERR_INVALID_FILE     -2
@@ -54,18 +55,23 @@
 #define IINDEX_ERR_FILE_NAME_NONE   -6
 #define IINDEX_ERR_FILE_CLOSED      -7
 #define IINDEX_ERR_NOT_FOUND        -8
+#define IINDEX_ERR_PATH_IS_FILE     -9
 
 // the value is 128 bit
 struct iIndexDBValue {
     uint32_t partitionLevel;//the partition key level
     uint64_t count;         //the key's subkey count.
-    uint32_t flags;         //deleted = 1
+    uint32_t reserved;
 };
-typedef struct iIndexDBValue IndexDBValue;
+typedef struct iIndexDBValue    IndexDBValue;
+typedef IndexDBValue*           PIndexDBValue;
 
 struct iIndexDBItem {
     char                key[IINDEX_MAX_KEY_SIZE];
     IndexDBValue        value;
+    char                isDeleted;
+    char                reserved;
+    uint16_t            reserved2;
 };
 typedef struct iIndexDBItem IndexDBItem;
 
@@ -73,13 +79,14 @@ typedef darray(IndexDBItem)      DarrayIndexItems;
 
 struct iIndexDBBlockHeader {
     uint32_t    count;              //the current used items count
+    uint32_t    id;                 //the real block index id on the disk
     //char        isFull;             //the block is full or not
     //char        reserved;
     //uint16_t    reserved2;
     char        maxKey[IINDEX_MAX_KEY_SIZE]; //which key is the max key of this block
 };
-typedef struct iIndexDBBlockHeader IndexDBBlockHeader;
-typedef IndexDBBlockHeader PIndexDBBlockHeader;
+typedef struct iIndexDBBlockHeader  IndexDBBlockHeader;
+typedef IndexDBBlockHeader*         PIndexDBBlockHeader;
 
 /*
 struct iIndexDBBlock {
@@ -120,7 +127,7 @@ struct iIndexDBFile {
     sds                 path;                                   //the index file path.
     char                maxKey[IINDEX_MAX_KEY_SIZE];            //specified which is the max key of the index file.
     //DarrayIndexBlocks   blocks;                                 //hold the blocks in the file.
-    IndexDBBlockHeader  *blockHeaders;                          //hold the block headers in the file. blockHeaders[0..MaxBlockCount-1]
+    PIndexDBBlockHeader  blockHeaders;                          //hold the block headers in the file. blockHeaders[0..MaxBlockCount-1]
 };
 typedef struct iIndexDBFile     IndexDBFile;
 typedef IndexDBFile*            PIndexDBFile;
@@ -134,7 +141,7 @@ struct iIndexDB {
     DarrayIndexItems    cacheSaving;                    //swap cacheSaving and cache, save cacheSaving when cache is full
 
     pthread_mutex_t     *c_lock;
-    pthread_t           thread_id;
+    pthread_t           *thread_id;
     pthread_attr_t      thread_attr;
 };
 typedef struct iIndexDB         IndexDB;
@@ -160,9 +167,10 @@ int IndexDB_Open(IndexDB *self);
 //flush/write cache to disk.
 void IndexDB_Flush(IndexDB *self);
 //if error, see errno
-IndexDBValue IndexDB_Get(IndexDB *self, const char *aKey);
+PIndexDBValue IndexDB_Get(IndexDB *self, const char *aKey);
 void IndexDB_Put(IndexDB *self, const char *aKey, const size_t aKeySize, const IndexDBValue aValue);
 DarrayIndexItems *IndexDB_List(IndexDB *self, const uint32_t aSkipCount, const uint32_t aCount);
+void IndexDB_Del(IndexDB *self, const char *aKey, const size_t aKeySize);
 void IndexDB_Close(IndexDB *self);
 void IndexDB_Free(IndexDB *self);
 ssize_t IndexDB_GetIndexFileId(IndexDB *self, const char *aKey);
@@ -174,7 +182,7 @@ int IndexDBFile_Open(PIndexDBFile self);
 void IndexDBFile_Close(PIndexDBFile self);
 void IndexDBFile_Free(PIndexDBFile self);
 ssize_t IndexDBFile_GetBlockId(PIndexDBFile self, const char *aKey);
-IndexDBValue IndexDBFile_Get(PIndexDBFile self, const char *aKey);
+PIndexDBValue IndexDBFile_Get(PIndexDBFile self, const char *aKey);
 
 static inline int iIndexBlockSize(int n)
 {
