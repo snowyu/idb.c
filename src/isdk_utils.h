@@ -108,6 +108,9 @@
 
  #define FNM_MATCHED(aPattern, aDir) (!aPattern || fnmatch(aPattern, aDir, FNM_PERIOD) == 0)
 
+ #define IMAX(a, b) (a > b) ? a : b
+ #define IMIN(a, b) (a < b) ? a : b
+
  #ifdef __cplusplus
  extern "C"
  {
@@ -300,13 +303,13 @@ static inline int DirectoryExists(const char *aFolderPath){
     Stat vFileinfo;
 
     if (stat(aFolderPath, &vFileinfo) == -1){
-        return 0;
+        return PATH_IS_NOT_EXISTS;
     }
     else if (S_ISDIR(vFileinfo.st_mode)){
-        return 1;
+        return PATH_IS_DIR;
     }
     else{
-        return -1; //the file exits.
+        return PATH_IS_FILE; //the file exits.
     }
 }
 
