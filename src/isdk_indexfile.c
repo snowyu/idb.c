@@ -23,6 +23,11 @@
 #include <fcntl.h>
 #include <assert.h>
 #include <errno.h>
+#include "deps/klist.h"
+
+//the single-linked list for opened inex files.
+#define __none_free(x)
+KLIST_INIT(IndexFile, PIndexDBFile, __none_free)
 
 //the internal structures should be in isdk_indexfile.c
 
@@ -44,6 +49,12 @@ void IndexDBBlock_Free(PIndexDBBlock self) {
 
 #define INDEXDB_FILE_BLOCK_SIZE(self) (self->header.blockSize * sizeof(IndexDBItem))
 #define INDEXDB_FILE_SIZEOF_HEAD(maxBlockCount) sizeof(struct iIndexDBFileHeader) + maxBlockCount * (sizeof(IndexDBBlockHeader))
+
+static inline void IndexDBKey_StrCopy(const char *aSrc, size_t aSrcSize, char *aDest) {
+    if (aSrcSize > IINDEX_MAX_KEY_SIZE-1) aSrcSize = IINDEX_MAX_KEY_SIZE-1;
+    memcpy(aDest, aSrc, aSrcSize);
+    aDest[aSrcSize] = '\0';
+}
 
 static size_t IndexDBFile_SizeOfBlock(PIndexDBFile self, const uint32_t aBlockId)
 {
@@ -111,6 +122,7 @@ bool IndexDBFile_WriteBlockHeader(PIndexDBFile self, const uint32_t aBlockId)
             IndexDBBlockHeader_ConvertEndianIfBe(&self->blockHeaders[aBlockId]);
             vOffset = write(self->fd, &self->blockHeaders[aBlockId], vSize);
             IndexDBBlockHeader_ConvertEndianIfBe(&self->blockHeaders[aBlockId]);
+            //printf("IndexDBFile_WriteBlockHeader blockId=%u, count=%d\n", aBlockId, self->blockHeaders[aBlockId].count);
             assert(vOffset == vSize);
             if (vOffset == vSize) return true;
         }
@@ -129,7 +141,9 @@ bool IndexDBFile_WriteFileHeader(PIndexDBFile self)
         IndexDBFileHeader_ConvertEndianIfBe(&self->header);
         vOffset = write(self->fd, &self->header, vSize);
         IndexDBFileHeader_ConvertEndianIfBe(&self->header);
+        return vOffset == vSize;
     }
+    return false;
 }
 bool IndexDBFile_WriteHeader(PIndexDBFile self)
 {
@@ -233,6 +247,7 @@ int IndexDBFile_Open(PIndexDBFile self) {
                     }
                     self->blockHeaders = vBlockHeaders;
                     IndexDBFile_BlocksConvertEndianIfBe(self);
+                    //printf("openfile(%s): blockCount=%d, count=%ld\n", self->path, self->header.blockCount, IndexDBFile_GetCount(self));
                 }
                 else {
                     self->blockHeaders = zcalloc(self->header.maxBlockCount*sizeof(IndexDBBlockHeader));
@@ -256,6 +271,7 @@ int IndexDBFile_Open(PIndexDBFile self) {
     return result;
 
 OpenFailed:
+    warnx("open failed:%s", self->path);
     if (self->fd >= 0) {
         close(self->fd);
         self->fd = -1;
@@ -264,15 +280,21 @@ OpenFailed:
     return result;
 }
 
-
-void IndexDBFile_Close(PIndexDBFile self) {
-    if (self->opened) {
-        self->opened = false;
-    }
+static inline void IndexDBFile_CloseFile(PIndexDBFile self)
+{
     if (self->fd >= 0) {
         close(self->fd);
         self->fd = -1;
     }
+}
+
+void IndexDBFile_Close(PIndexDBFile self) {
+    if (self->opened) {
+        IndexDBFile_WriteHeader(self);
+        //printf("CloseFile, blockCount=%d, count=%zu\n", self->header.blockCount, IndexDBFile_GetCount(self));
+        self->opened = false;
+    }
+    IndexDBFile_CloseFile(self);
     if (self->blockHeaders) {
         zfree(self->blockHeaders);
         self->blockHeaders = NULL;
@@ -292,7 +314,7 @@ ssize_t IndexDBFile_GetBlockId(PIndexDBFile self, const char *aKey)
     return result;
 }
 
-bool IndexDBFile_WriteBlock(PIndexDBFile self, const uint32_t aBlockId, IndexDBItem *aBlock)
+bool IndexDBFile_WriteBlock(PIndexDBFile self, const uint32_t aBlockId, DarrayIndexItems aBlock)
 {
     uint32_t vBlockSize;
     off_t vOffset, vSize;
@@ -303,7 +325,7 @@ bool IndexDBFile_WriteBlock(PIndexDBFile self, const uint32_t aBlockId, IndexDBI
         vBlockSize = IndexDBFile_SizeOfBlock(self, aBlockId); //INDEXDB_FILE_BLOCK_SIZE(self);
         vSize = lseek(self->fd, vOffset, SEEK_SET);
         if (vSize == vOffset) {
-            vSize = write(self->fd, aBlock, vBlockSize);
+            vSize = write(self->fd, aBlock.item, vBlockSize);
             if (vSize == vBlockSize) {
                 return IndexDBFile_WriteBlockHeader(self, aBlockId);
             }
@@ -312,12 +334,13 @@ bool IndexDBFile_WriteBlock(PIndexDBFile self, const uint32_t aBlockId, IndexDBI
     return false;
 }
 
-IndexDBItem *IndexDBFile_ReadBlock(PIndexDBFile self, const uint32_t aBlockId)
+DarrayIndexItems IndexDBFile_ReadBlock(PIndexDBFile self, const uint32_t aBlockId)
 {
-    IndexDBItem *vBlock = NULL;
+    DarrayIndexItems vBlock;
     uint32_t vBlockSize;
     off_t vOffset, vSize;
 
+    darray_init(vBlock);
     if (self->fd < 0) self->fd = open(self->path, O_RDWR);
     if (self->fd >= 0) {
         vOffset = IndexDBFile_CalcBlockOffset(self, aBlockId);
@@ -326,14 +349,15 @@ IndexDBItem *IndexDBFile_ReadBlock(PIndexDBFile self, const uint32_t aBlockId)
         //if (vSize >= vOffset + vBlockSize) {
         vSize = lseek(self->fd, vOffset, SEEK_SET);
         if (vSize == vOffset) {
-            vBlock = zcalloc(vBlockSize);
-            vSize = read(self->fd, vBlock, vBlockSize);
+            darray_resize(vBlock, self->blockHeaders[aBlockId].count);
+            //vBlock = zmalloc(vBlockSize);
+            vSize = read(self->fd, vBlock.item, vBlockSize);
             if (vSize == vBlockSize) {
                 return vBlock;
             }
             else {
-                zfree(vBlock);
-                vBlock = NULL;
+                darray_free(vBlock);
+                warnx("expected count=%d, infact count=%d", self->blockHeaders[aBlockId].count, vSize / sizeof(IndexDBItem));
             }
         }
     }
@@ -343,24 +367,26 @@ PIndexDBValue IndexDBFile_GetOnBlock(PIndexDBFile self, const uint32_t aBlockId,
     PIndexDBValue result = NULL;
     uint32_t vBlockSize, i;
     off_t vOffset, vSize;
-    IndexDBItem *vBlock;
+    DarrayIndexItems vBlock;
 
     //if (self->opened) {
-        errno = 0;
-        vBlock = IndexDBFile_ReadBlock(self, aBlockId);
-        if (vBlock) {
+        errno   = 0;
+        vBlock  = IndexDBFile_ReadBlock(self, aBlockId);
+        if (darray_size(vBlock)) {
             for (i = 0; i < self->header.blockSize; i++) {
-                if (strcmp(vBlock[i].key, aKey) == 0) {
+                if (strcmp(vBlock.item[i].key, aKey) == 0) {
                     result = zmalloc(sizeof(IndexDBValue));
-                    memcpy(result, &vBlock[i].value, sizeof(IndexDBValue));
-                    zfree(vBlock);
-                    return result;
+                    memcpy(result, &vBlock.item[i].value, sizeof(IndexDBValue));
+                    //darray_free(vBlock);
+                    //return result;
                 }
             }
-            zfree(vBlock);
-            errno = IINDEX_ERR_NOT_FOUND;
+            darray_free(vBlock);
+            if (!result)
+                errno = IINDEX_ERR_NOT_FOUND;
         }
-        errno = IINDEX_ERR_CANT_READ_FILE;
+        else
+            errno = IINDEX_ERR_CANT_READ_FILE;
     //}
     //else
     //    errno = IINDEX_ERR_FILE_CLOSED;
@@ -407,18 +433,20 @@ ssize_t IndexDBFile_NewBlock(PIndexDBFile self, const char *aKey)
     return result;
 }
 
-bool IndexDBFile_SplinterBlock(PIndexDBFile self, uint32_t aBlockId, IndexDBItem *aBlock)
+bool IndexDBFile_SplinterBlock(PIndexDBFile self, uint32_t aBlockId, DarrayIndexItems aBlock)
 {
     bool result;
     int vSplit, vMod, i, vBlockId;//, vOldBlockCount;
-    IndexDBItem *vBlock;
+    DarrayIndexItems vBlock;
     IndexDBBlockHeader  vBlockHeader;
 
-    if (self->header.blockCount + IINDEX_SPLIT_COUNT <= self->header.maxBlockCount)
+    if (self->header.blockCount + IINDEX_SPLIT_COUNT-1 <= self->header.maxBlockCount)
     {
         vSplit  = self->blockHeaders[aBlockId].count / IINDEX_SPLIT_COUNT;
         vMod    = self->blockHeaders[aBlockId].count % IINDEX_SPLIT_COUNT;
-        vBlock  = zcalloc(INDEXDB_FILE_BLOCK_SIZE(self));
+        darray_init(vBlock);
+        darray_resize(vBlock, vSplit);
+        //vBlock  = zcalloc(INDEXDB_FILE_BLOCK_SIZE(self));
         //vOldBlockCount = self->header.blockCount;
         //maybe I should use the link-list in memory.
         memmove(self->blockHeaders+aBlockId+IINDEX_SPLIT_COUNT-1, self->blockHeaders+result, (self->header.blockCount-result)*INDEXDB_FILE_BLOCK_SIZE(self));
@@ -428,17 +456,17 @@ bool IndexDBFile_SplinterBlock(PIndexDBFile self, uint32_t aBlockId, IndexDBItem
             vBlockId = aBlockId + i;
             self->blockHeaders[vBlockId].id = self->header.blockCount+i-1;
             self->blockHeaders[vBlockId].count = vSplit;
-            strcpy(self->blockHeaders[vBlockId].maxKey, aBlock[vSplit*(i+1)+vMod-1].key);
-            memcpy(vBlock, aBlock+vSplit*i+vMod, vSplit);
+            strcpy(self->blockHeaders[vBlockId].maxKey, darray_item(aBlock, vSplit*(i+1)+vMod-1).key);
+            memcpy(vBlock.item, aBlock.item+vSplit*i+vMod, vSplit*sizeof(IndexDBItem));
             result = IndexDBFile_WriteBlock(self, vBlockId, vBlock);
             if (!result) break;
         }
-        zfree(vBlock);
+        darray_free(vBlock);
         assert(result);
         if (result) {
             self->header.blockCount += IINDEX_SPLIT_COUNT - 1;
             self->blockHeaders[aBlockId].count = vSplit + vMod;
-            strcpy(self->blockHeaders[aBlockId].maxKey, aBlock[vSplit+vMod-1].key);
+            strcpy(self->blockHeaders[aBlockId].maxKey, aBlock.item[vSplit+vMod-1].key);
             result = IndexDBFile_WriteBlockHeader(self, aBlockId);
         }
         //else {
@@ -446,63 +474,85 @@ bool IndexDBFile_SplinterBlock(PIndexDBFile self, uint32_t aBlockId, IndexDBItem
         //}
     }
     else {
-        self->header.isFull = true;
         result = false;
     }
+    if (self->header.blockCount + IINDEX_SPLIT_COUNT -1 > self->header.maxBlockCount)
+        self->header.isFull = true;
+    printf("SplinterBlock(%s):%d isFull=%d\n", self->path, result, self->header.isFull);
     return result;
 
 }
 
 bool IndexDBFile_SaveItem(PIndexDBFile self, IndexDBItem *aItem)
 {
+    bool result;
     ssize_t vBlockId;
     int cmp = 1;
-    IndexDBItem *vBlock;
+    DarrayIndexItems vBlock;
     int i;
 
     vBlockId = IndexDBFile_GetBlockId(self, aItem->key);
+    printf("%s:\n", self->path);
+    printf("save key=%s, value=%s, BlockId=%zd, blockCount=%d\n", aItem->key, (char*)&aItem->value, vBlockId, self->header.blockCount);
     if (vBlockId == -1) {
         vBlockId = IndexDBFile_NewBlock(self, aItem->key);
         if (vBlockId == -1) return false;
-        vBlock = zcalloc(INDEXDB_FILE_BLOCK_SIZE(self));
+        darray_init(vBlock);
+        //darray_resize(vBlock, 1);
+        //vBlock = zcalloc(sizeof(IndexDBItem));
     }
     else {
         vBlock = IndexDBFile_ReadBlock(self, vBlockId);
-        if (!vBlock) return false;
+        assert(darray_size(vBlock) != 0 || self->blockHeaders[vBlockId].count == 0) ;
     }
-    //printf("key=%s, BlockId=%zu, id=%d, count=%d\n", aItem->key, vBlockId, self->blockHeaders[vBlockId].id, self->blockHeaders[vBlockId].count);
+    //printf("key=%s, isDeleted=%d, BlockId=%zd, id=%d, count=%d, blockSize=%d\n", aItem->key, aItem->isDeleted, vBlockId, self->blockHeaders[vBlockId].id, self->blockHeaders[vBlockId].count, self->header.blockSize);
 
     for (i = 0; i < self->blockHeaders[vBlockId].count; i++) {
-        cmp = strcmp(aItem->key, vBlock[i].key);
-        //printf("%d cmp=%d\n", i, cmp);
+        cmp = strcmp(aItem->key, darray_item(vBlock, i).key);
+        //printf("%s cmp %s=%d\n", aItem->key, darray_item(vBlock,i).key, cmp);
         if (cmp == 0) {
             if (aItem->isDeleted) {
-                memmove(vBlock+i, vBlock+i+1, (self->header.blockSize-i-1) * sizeof(IndexDBItem));
+                darray_del(vBlock, i);
                 self->blockHeaders[vBlockId].count--;
                 break;
             }
+            else {
+                darray_item(vBlock, i).value = aItem->value;
+            }
         }
-        else if (cmp < 0) {
-            memmove(vBlock+i+1, vBlock+i, (self->header.blockSize-i) * sizeof(IndexDBItem));
-            vBlock[i] = *aItem;
+        else if (cmp < 0 && !aItem->isDeleted) {
+            //vBlock = zrealloc(vBlock, (self->blockHeaders[vBlockId].count+1)*sizeof(IndexDBItem));
+            darray_insert(vBlock, i, *aItem);
+            //memmove(vBlock+i+1, vBlock+i, (self->header.blockSize-i) * sizeof(IndexDBItem));
+            //vBlock[i] = *aItem;
+            //memcpy(vBlock+i, aItem, sizeof(IndexDBItem));
             self->blockHeaders[vBlockId].count++;
             break;
         }
     }
-    if (cmp > 0) {
+    if (cmp > 0 && !aItem->isDeleted) {
         //vBlock[i] = *aItem;
-        memcpy(vBlock+i, aItem, sizeof(IndexDBItem));
+        //vBlock = zrealloc(vBlock, (self->blockHeaders[vBlockId].count+1)*sizeof(IndexDBItem));
+        darray_append(vBlock, *aItem);
+        //printf("append %s\n", darray_item(vBlock, darray_size(vBlock)-1).key);
+        //memcpy(vBlock+i, aItem, sizeof(IndexDBItem));
         self->blockHeaders[vBlockId].count++;
         strcpy(self->blockHeaders[vBlockId].maxKey, aItem->key);
     }
-    //printf("BlockId=%zu, id=%d, count=%d\n", vBlockId, self->blockHeaders[vBlockId].id, self->blockHeaders[vBlockId].count);
+    printf("     key=%s, isDeleted=%d, BlockId=%zd, id=%d, count=%d, blockSize=%d\n", aItem->key, aItem->isDeleted, vBlockId, self->blockHeaders[vBlockId].id, self->blockHeaders[vBlockId].count, self->header.blockSize);
     assert(self->header.blockSize != 0);
-    if (self->blockHeaders[vBlockId].count >= self->header.blockSize) {
+    if (!aItem->isDeleted && (strcmp(aItem->key, self->header.maxKey) > 0)) {
+        IndexDBKey_StrCopy(aItem->key, strlen(aItem->key), self->header.maxKey);
+        printf("header.maxKey=%s\n", self->header.maxKey);
+    }
+    //for (i=0; i<darray_size(vBlock); i++)
+    //    printf("  key=%s\n", darray_item(vBlock, i).key);
+
+    if (self->blockHeaders[vBlockId].count > self->header.blockSize) {
         return IndexDBFile_SplinterBlock(self, vBlockId, vBlock);
     }
     else
         return IndexDBFile_WriteBlock(self, vBlockId, vBlock);
-    printf("BlockId=%zu, id=%d, count=%d\n", vBlockId, self->blockHeaders[vBlockId].id, self->blockHeaders[vBlockId].count);
 }
 
 static void darray_iIndex_free_handler(PIndexDBFile aPtr)
@@ -514,8 +564,8 @@ void IndexDB_Init(IndexDB *self)
 {
     self->path = NULL;
     self->opened = false;
-    darray_empty(self->cache);
-    darray_empty(self->cacheSaving);
+    darray_empty(*self->cache);
+    darray_empty(*self->cacheSaving);
 }
 
 IndexDB *IndexDB_New()
@@ -528,10 +578,13 @@ IndexDB *IndexDB_New()
     result->thread_id = NULL;
     darray_init(result->indexes);
     result->indexes.onFree = (DarrayFreeHandler) darray_iIndex_free_handler;
-    darray_init(result->cache);
-    darray_growalloc(result->cache, IINDEX_BLOCK_SIZE);
-    darray_init(result->cacheSaving);
-    darray_growalloc(result->cacheSaving, IINDEX_BLOCK_SIZE);
+    result->indexesOpened = kl_init(IndexFile);
+    result->cache = zcalloc(sizeof(DarrayIndexItems));
+    //darray_init(result->cache);
+    darray_growalloc(*result->cache, IINDEX_BLOCK_SIZE);
+    result->cacheSaving = zcalloc(sizeof(DarrayIndexItems));
+    //darray_init(result->cacheSaving);
+    darray_growalloc(*result->cacheSaving, IINDEX_BLOCK_SIZE);
     IndexDB_Init(result);
     return result;
 }
@@ -540,8 +593,11 @@ void IndexDB_Free(IndexDB *self)
 {
     IndexDB_Close(self);
     darray_free_all(self->indexes);
-    darray_free(self->cache);
-    darray_free(self->cacheSaving);
+    kl_destroy(IndexFile, self->indexesOpened);
+    darray_free(*self->cache);
+    darray_free(*self->cacheSaving);
+    zfree(self->cache);
+    zfree(self->cacheSaving);
     zfree(self->c_lock);
     if (self->path) sdsfree(self->path);
     zfree(self);
@@ -550,6 +606,28 @@ void IndexDB_Free(IndexDB *self)
 static ssize_t _WalkDir_OnIndexFile(size_t aCount, const char *aDir, const Dirent *aItem, IndexDB *aDB)
 {
     return WALK_ITEM_OK;
+}
+
+static int __klist_can_del(PIndexDBFile aIndex) {
+    return aIndex->fd < 0;
+}
+static inline void cleanClosedIndexes(klist_t(IndexFile) *aOpenedFiles) {
+    kl_delex(IndexFile, aOpenedFiles, __klist_can_del);
+}
+static inline void IndexDB_OpenIndexFile(IndexDB *self, PIndexDBFile aIndex)
+{
+    PIndexDBFile vIndex;
+    klist_t(IndexFile) *vOpenedFiles;
+    vOpenedFiles = self->indexesOpened;
+
+    while (kl_size(vOpenedFiles) >= IINDEX_MAX_OPENED_INDEX) {
+        kl_shift(IndexFile, vOpenedFiles, &vIndex);
+        if (aIndex != vIndex) IndexDBFile_CloseFile(vIndex);
+        cleanClosedIndexes(vOpenedFiles);
+    }
+    IndexDBFile_Open(aIndex);
+    kl_del(IndexFile, vOpenedFiles, aIndex);
+    *kl_pushp(IndexFile, vOpenedFiles) = aIndex;
 }
 
 //0=successful.
@@ -611,7 +689,8 @@ ssize_t IndexDB_GetIndexFileId(IndexDB *self, const char *aKey)
     PIndexDBFile vIndex = NULL;
     for (result = 0; result < darray_size(self->indexes); result++) {
         vIndex = darray_item(self->indexes, result);
-        if (strcmp(aKey, vIndex->maxKey) <= 0)
+        printf("%s maxKey=%s\n", vIndex->path, vIndex->header.maxKey);
+        if (strcmp(aKey, vIndex->header.maxKey) <= 0)
             //aKey <= vIndex.maxKey
             return result;
     }
@@ -636,12 +715,12 @@ PIndexDBFile IndexDB_GetIndexFile(IndexDB *self, const char *aKey)
         return NULL;
 }
 
-ssize_t IndexDB_GetIdInCache(IndexDB *self, const char *aKey)
+ssize_t IndexDB_GetIdInCache(IndexDB *self, const char *aKey, const DarrayIndexItems *aCache)
 {
     ssize_t result;
 
-    for (result = 0; result < darray_size(self->cache); result++) {
-        if (strcmp(aKey, darray_item(self->cache, result).key) == 0) {
+    for (result = 0; result < darray_size(*aCache); result++) {
+        if (strcmp(aKey, darray_item(*aCache, result).key) == 0) {
             return result;
         }
     }
@@ -652,14 +731,37 @@ PIndexDBValue IndexDB_GetInCache(IndexDB *self, const char *aKey)
 {
     PIndexDBValue result = NULL;
     errno = 0;
-    ssize_t i = IndexDB_GetIdInCache(self, aKey);
-    if (i != -1 && !darray_item(self->cache, i).isDeleted) {
-        result = zmalloc(sizeof(IndexDBValue));
-        memcpy(result, &darray_item(self->cache, i).value, sizeof(IndexDBValue));
-        //printf("found on cache: %s\n", (char *) result);
-        return result;
+    DarrayIndexItems *vCache = self->cache;
+
+    ssize_t i = IndexDB_GetIdInCache(self, aKey, vCache);
+    if (i != -1) {
+        if (!darray_item(*vCache, i).isDeleted) {
+            result = zmalloc(sizeof(IndexDBValue));
+            memcpy(result, &darray_item(*vCache, i).value, sizeof(IndexDBValue));
+            return result;
+        }
+        else
+            errno = IINDEX_ERR_DELETED;
     }
-    errno = IINDEX_ERR_NOT_FOUND;
+    else if (self->thread_id) {
+        vCache = self->cacheSaving;
+        pthread_mutex_lock(self->c_lock);
+        i = IndexDB_GetIdInCache(self, aKey, vCache);
+        if (i != -1) {
+            //printf("found value=%s\n", (char*) &darray_item(*vCache, i).value);
+            if (!darray_item(*vCache, i).isDeleted) {
+                result = zmalloc(sizeof(IndexDBValue));
+                memcpy(result, &darray_item(*vCache, i).value, sizeof(IndexDBValue));
+            }
+            else
+                errno = IINDEX_ERR_DELETED;
+        }
+        else
+            errno = IINDEX_ERR_NOT_FOUND;
+        pthread_mutex_unlock(self->c_lock);
+    }
+    else
+        errno = IINDEX_ERR_NOT_FOUND;
     return result;
 }
 
@@ -667,11 +769,15 @@ PIndexDBValue IndexDB_Get(IndexDB *self, const char *aKey)
 {
     PIndexDBValue result = NULL;
     PIndexDBFile vIndex;
+    errno = 0;
     result = IndexDB_GetInCache(self, aKey);
-    if (!result) {
+    if (!result && errno == IINDEX_ERR_NOT_FOUND) {
         vIndex = IndexDB_GetIndexFile(self, aKey);
-        if (vIndex)
+        if (vIndex) {
+            printf("finding %s, the maxKey=%s\n", vIndex->path, vIndex->header.maxKey);
+            IndexDB_OpenIndexFile(self, vIndex);
             result = IndexDBFile_Get(vIndex, aKey);
+        }
         else
             errno = IINDEX_ERR_NOT_FOUND;
     }
@@ -679,36 +785,30 @@ PIndexDBValue IndexDB_Get(IndexDB *self, const char *aKey)
     return result;
 }
 
-static inline void IndexDBKey_StrCopy(const char *aSrc, size_t aSrcSize, char *aDest) {
-    if (aSrcSize > IINDEX_MAX_KEY_SIZE-1) aSrcSize = IINDEX_MAX_KEY_SIZE-1;
-    memcpy(aDest, aSrc, aSrcSize);
-    aDest[aSrcSize] = '\0';
-}
-
 void IndexDB_PutInCache(IndexDB *self, const char *aKey, size_t aKeySize,
         const IndexDBValue aValue, const char aIsDeleted)
 {
     IndexDBItem vItem;
-    ssize_t i = IndexDB_GetIdInCache(self, aKey);
+    ssize_t i = IndexDB_GetIdInCache(self, aKey, self->cache);
     if (i == -1) {
         IndexDBKey_StrCopy(aKey, aKeySize, vItem.key);
         memcpy(&vItem.value,  &aValue, sizeof(aValue));
         vItem.isDeleted = aIsDeleted;
-        darray_append(self->cache, vItem);
-        assert(memcmp(&darray_item(self->cache, darray_size(self->cache)-1), &vItem, sizeof(vItem))==0);
+        darray_append(*self->cache, vItem);
+        assert(memcmp(&darray_item(*self->cache, darray_size(*self->cache)-1), &vItem, sizeof(vItem))==0);
         //printf("put %s\n", (char *)&darray_item(self->cache, darray_size(self->cache)-1).value);
-        //printf("put %s\n", (char *)&vItem.value);
+        //printf("put %s isDeleted=%d\n", vItem.key, vItem.isDeleted);
     }
     else {
         if (aIsDeleted)
-            darray_item(self->cache, i).isDeleted = aIsDeleted;
+            darray_item(*self->cache, i).isDeleted = aIsDeleted;
         else
-            darray_item(self->cache, i).value = aValue;
+            darray_item(*self->cache, i).value = aValue;
     }
 }
 
 static inline void IndexDB_SwapCache(IndexDB *self) {
-    DarrayIndexItems t;
+    DarrayIndexItems *t;
     t = self->cache;
     self->cache = self->cacheSaving;
     self->cacheSaving = t;
@@ -717,7 +817,7 @@ static inline void IndexDB_SwapCache(IndexDB *self) {
 ssize_t IndexDB_AddIndexFile(IndexDB *self, PIndexDBFile aIndex)
 {
     ssize_t result;
-    int cmp;
+    int cmp = 1;
     for (result = 0; result < darray_size(self->indexes); result++) {
         cmp = strcmp(aIndex->header.maxKey, darray_item(self->indexes, result)->header.maxKey);
         if (cmp < 0) {
@@ -728,6 +828,7 @@ ssize_t IndexDB_AddIndexFile(IndexDB *self, PIndexDBFile aIndex)
             break;
         }
     }
+    if (cmp > 0) darray_append(self->indexes, aIndex);
     return result;
 }
 
@@ -745,27 +846,33 @@ void IndexDB_SplinterIndexFile(IndexDB *self, PIndexDBFile aIndex)
 {
     uint32_t vSplit, vMod, i, j, vBlockId, vNewBlockId;
     PIndexDBFile vIndex;
-    IndexDBItem *vBlock;
+    DarrayIndexItems vBlock;
 
     vSplit  = aIndex->header.blockCount / IINDEX_SPLIT_COUNT;
     vMod    = aIndex->header.blockCount % IINDEX_SPLIT_COUNT;
+    printf("blockCount=%d, split=%d, mod=%d\n", aIndex->header.blockCount, vSplit, vMod);
+    IndexDBKey_StrCopy(aIndex->blockHeaders[vSplit+vMod-1].maxKey, IINDEX_MAX_KEY_SIZE, aIndex->header.maxKey);
+    printf("%s maxkey =%s\n", aIndex->path, aIndex->header.maxKey);
     for (i = 1; i < IINDEX_SPLIT_COUNT; i++) {
         //the last block for the new index file.
         vBlockId = vSplit*(i+1)+vMod-1;
         vIndex = IndexDB_NewIndexFile(self, aIndex->blockHeaders[vBlockId].maxKey);
         assert(vIndex);
-        IndexDBFile_Open(vIndex);
+        printf("%s lastBlock=%d, maxKey=%s\n", vIndex->path, vBlockId, aIndex->blockHeaders[vBlockId].maxKey);
+        IndexDB_OpenIndexFile(self, vIndex);
         //back to the first block
         vBlockId = vBlockId-vSplit+1;
         for (j = 0; j < vSplit; j++) {
+            printf("blockId=%d\n", vBlockId);
             vBlock  = IndexDBFile_ReadBlock(aIndex, vBlockId);
-            assert(vBlock);
+            assert(darray_size(vBlock));
+            printf("    maxKey=%s\n", aIndex->blockHeaders[vBlockId].maxKey);
             vNewBlockId = IndexDBFile_NewBlock(vIndex, aIndex->blockHeaders[vBlockId].maxKey);
             vIndex->blockHeaders[vNewBlockId].count = vSplit;
             assert(IndexDBFile_WriteBlock(vIndex, vNewBlockId, vBlock));
             vBlockId++;
         }
-        IndexDBFile_Close(vIndex);
+        IndexDBFile_WriteFileHeader(vIndex);
     }
     aIndex->header.blockCount = vSplit + vMod;
     aIndex->header.isFull = false;
@@ -776,20 +883,22 @@ void IndexDB_SaveItem(IndexDB *self, IndexDBItem *aItem) {
     PIndexDBFile vIndex;
     vIndex = IndexDB_GetIndexFile(self, aItem->key);
     if (vIndex == NULL) vIndex = IndexDB_NewIndexFile(self, aItem->key);
-    if (!vIndex->opened) IndexDBFile_Open(vIndex);
+    if (!vIndex->opened) {
+        IndexDB_OpenIndexFile(self, vIndex);
+    }
     IndexDBFile_SaveItem(vIndex, aItem);
     if (IndexDBFile_IsFull(vIndex))
         IndexDB_SplinterIndexFile(self, vIndex);
-    IndexDBFile_Close(vIndex);
+    //IndexDBFile_Close(vIndex);
 }
 
-void IndexDB_SaveItems(IndexDB *self, DarrayIndexItems aCache)
+void IndexDB_SaveItems(IndexDB *self, DarrayIndexItems *aCache)
 {
     int i;
-    for (i = 0; i < darray_size(aCache); i++) {
-        IndexDB_SaveItem(self, &darray_item(aCache, i));
+    printf("saveItems count:%lu\n", darray_size(*aCache));
+    for (i = 0; i < darray_size(*aCache); i++) {
+        IndexDB_SaveItem(self, &darray_item(*aCache, i));
     }
-    darray_empty(aCache);
 }
 
 void *IndexDB_DoSaveOnThread(IndexDB *self)
@@ -797,17 +906,20 @@ void *IndexDB_DoSaveOnThread(IndexDB *self)
     IndexDB_SaveItems(self, self->cacheSaving);
 	pthread_detach(pthread_self());
     pthread_mutex_lock(self->c_lock);
+    darray_clear(*self->cacheSaving);
     if (self->thread_id) {
         zfree(self->thread_id);
         self->thread_id = NULL;
     }
     pthread_mutex_unlock(self->c_lock);
+    printf("bgSaving done.\n");
 	pthread_exit(NULL);
 }
 
 typedef void*(*ThreadProcessor)(void* arg);
 void IndexDB_BgSave(IndexDB *self)
 {
+    printf("bgSaving...\n");
     if (self->thread_id == NULL) {
         self->thread_id = zmalloc(sizeof(pthread_t));
         if (pthread_create(self->thread_id, &self->thread_attr, (ThreadProcessor)IndexDB_DoSaveOnThread, self) != 0) {
@@ -824,11 +936,11 @@ void IndexDB_Put(IndexDB *self, const char *aKey, const size_t aKeySize, const I
 {
     IndexDB_PutInCache(self, aKey, aKeySize, aValue, false);
     //printf("put %lu, %d\n", darray_size(self->cache), IINDEX_MAX_CACHE_SIZE);
-    if (!self->thread_id && darray_size(self->cache) >= IINDEX_MAX_CACHE_SIZE) {
+    if (!self->thread_id && darray_size(*self->cache) >= IINDEX_MAX_CACHE_SIZE) {
         pthread_mutex_lock(self->c_lock);
         IndexDB_SwapCache(self);
-        IndexDB_BgSave(self);
         pthread_mutex_unlock(self->c_lock);
+        IndexDB_BgSave(self);
     }
 }
 
@@ -836,19 +948,33 @@ void IndexDB_Del(IndexDB *self, const char *aKey, const size_t aKeySize)
 {
     IndexDBValue v;
     IndexDB_PutInCache(self, aKey, aKeySize, v, true);
-    if (!self->thread_id && darray_size(self->cache) >= IINDEX_MAX_CACHE_SIZE) {
+    if (!self->thread_id && darray_size(*self->cache) >= IINDEX_MAX_CACHE_SIZE) {
         pthread_mutex_lock(self->c_lock);
         IndexDB_SwapCache(self);
-        IndexDB_BgSave(self);
         pthread_mutex_unlock(self->c_lock);
+        IndexDB_BgSave(self);
+    }
+}
+
+ssize_t IndexDB_GetCount(IndexDB *self)
+{
+    if (self->opened) {
+        //
     }
 }
 
 void IndexDB_Flush(IndexDB *self)
 {
+    DarrayIndexItems *vCache;
     //printf("%lu\n", self->thread_id);
-    while (self->thread_id) sleep(10);
-    IndexDB_SaveItems(self, self->cache);
+    while (self->thread_id) sched_yield();
+    vCache = self->cache;
+    if (darray_size(*vCache)) {
+        IndexDB_SaveItems(self, vCache);
+        pthread_mutex_lock(self->c_lock);
+        darray_clear(*vCache);
+        pthread_mutex_unlock(self->c_lock);
+    }
 }
 
 #ifdef ISDK_INDEXFILE_TEST_MAIN
@@ -866,11 +992,10 @@ void IndexDB_Flush(IndexDB *self)
 
 //gcc --std=c99 -I. -Ideps  -o test -DISDK_INDEXFILE_TEST_MAIN isdk_indexfile.c isdk_utils.c isdk_sds.c deps/sds.c deps/zmalloc.c deps/utf8proc.c
 
-void test_put(IndexDB *aDB, char *aKey, char aValue[sizeof(IndexDBValue)])
+bool _test_put(IndexDB *aDB, char *aKey, char aValue[sizeof(IndexDBValue)])
 {
     IndexDBValue val, v;
     PIndexDBValue pv;
-    sds s;
     int vSize;
     bool vResult;
     vSize = IMIN(sizeof(val), strlen(aValue));
@@ -882,27 +1007,27 @@ void test_put(IndexDB *aDB, char *aKey, char aValue[sizeof(IndexDBValue)])
     IndexDB_Put(aDB, aKey, strlen(aKey), *(IndexDBValue *) aValue);
     pv = IndexDB_Get(aDB, aKey);
     //val = *v2;
-    s = sdsalloc(NULL, 10);
-    s = sdsprintf(s, "put '%s' and get from cache", aKey);
-    vResult = strncmp((char *)pv, aValue, vSize)== 0;
-    if (!vResult) {
-        assert(errno == 0);
-        test_cond(s, vResult);
-        printf("expected: %s; infact: %s\n", aValue, (char *) pv);
-        IndexDBItem f;
-        vSize = IndexDB_GetIdInCache(aDB, aKey);
-        f = darray_item(aDB->cache, vSize);
-        printf("expected: %s; infact: %s\n", aValue, (char *) &f.value);
-    }
+    //assert(errno == 0);
+    vResult = pv != NULL;
+    if (vResult) vResult = strncmp((char *)pv, aValue, vSize)== 0;
+    if (!vResult) printf("put %s key expected: %s; infact: %s\n", aKey, aValue, (char *) pv);
     if (pv) zfree(pv);
-        
-    sdsfree(s);
+    return vResult;
 }
 
-void test_get(IndexDB *aDB, char *aKey, char aValue[sizeof(IndexDBValue)], int aResult)
+void test_put(IndexDB *aDB, char *aKey, char aValue[sizeof(IndexDBValue)])
+{
+    sds s;
+    bool vResult = _test_put(aDB, aKey, aValue);
+    s = sdsalloc(NULL, 10);
+    s = sdsprintf(s, "put '%s' and get from cache", aKey);
+    test_cond(s, vResult);
+    sdsfree(s);    
+}
+
+int _test_get(IndexDB *aDB, char *aKey, char aValue[sizeof(IndexDBValue)], int aResult)
 {
     PIndexDBValue val;
-    sds s;
     int vErrno;
     int vSize;
     vSize = IMIN(sizeof(val), strlen(aValue));
@@ -910,51 +1035,132 @@ void test_get(IndexDB *aDB, char *aKey, char aValue[sizeof(IndexDBValue)], int a
     //memcpy(&val, aValue, sizeof(val));
     val = IndexDB_Get(aDB, aKey);
     vErrno = errno;
-    s = sdsalloc(NULL, 10);
-    s = sdsprintf(s, "get '%s' = %d ok", aKey, aResult);
     if (aResult == 0) {
-        aResult = strncmp((char*)val, aValue, vSize)== 0;
-        if (!aResult) test_cond(s, aResult);
-    }
-    else {
-        if (vErrno != aResult) test_cond(s, vErrno == aResult);
+        //assert(vErrno == aResult);
+        aResult = val != NULL;
+        if (aResult) {
+            aResult = strncmp((char*)val, aValue, vSize)== 0;
+            if (!aResult) vErrno = -10000;
+        }
     }
     if (val) zfree(val);
+    return vErrno;
+}
+
+void test_get(IndexDB *aDB, char *aKey, char aValue[sizeof(IndexDBValue)], int aResult)
+{
+    sds s;
+    int result;
+    s = sdsalloc(NULL, 10);
+    s = sdsprintf(s, "get '%s' should be %d", aKey, aResult);
+    result = _test_get(aDB, aKey, aValue, aResult);
+    if (result != aResult)
+       s = sdscatprintf(s, ", but it is %d", result);
+    test_cond(s, result == aResult);
     sdsfree(s);
 }
 
 int main(int argc, char **argv)
 {
     {
+
         IndexDB *vDB;
-        int i;
+        int i, c;
         sds s = sdsempty();
         sds v = sdsempty();
-
-        DeleteDir("indexDBTest/1");
         vDB = IndexDB_New();
         vDB->path = sdsnew("indexDBTest/1");
+/*
+        DeleteDir("indexDBTest/1");
         IndexDB_Open(vDB);
         test_put(vDB, "hiworld", "vasf");
+        test_put(vDB, "secondlife", "morevaluetest");
         IndexDB_Close(vDB);
         IndexDB_Open(vDB);
         test_get(vDB, "hiworld", "vasf", 0);
+        test_get(vDB, "secondlife", "morevaluetest", 0);
+        printf("delete hiworld\n");
         IndexDB_Del(vDB, "hiworld", 7);
-        test_get(vDB, "hiworld", "", IINDEX_ERR_NOT_FOUND);
+        test_cond("delete hiworld and cache should be marked deleted", _test_get(vDB, "hiworld", "", IINDEX_ERR_DELETED) == IINDEX_ERR_DELETED);
         IndexDB_Close(vDB);
         IndexDB_Open(vDB);
-        test_get(vDB, "hiworld", "", IINDEX_ERR_NOT_FOUND);
+        test_cond("check hiword should be deleted on disk", _test_get(vDB, "hiworld", "", IINDEX_ERR_NOT_FOUND) == IINDEX_ERR_NOT_FOUND);
+        IndexDB_Close(vDB);
+
+        DeleteDir("indexDBTest/1");
+        printf("test cache block\n");
+        printf("---------------\n");
+        IndexDB_Open(vDB);
+        c = 0;
+        for (i = 0; i < IINDEX_MAX_CACHE_SIZE; i++) {
+            s = sdsprintf(s, "Key%08d", i);
+            v = sdsprintf(v, "%08d", i);
+            if (_test_put(vDB, s, v)) c++;
+        }
+        test_cond("put a whole cache block", c = i);
+        test_cond("bgthread should start", vDB->thread_id);
+        IndexDB_Close(vDB);
+        IndexDB_Open(vDB);
+        c = 0;
+        for (i = 0; i < IINDEX_MAX_CACHE_SIZE; i++) {
+            s = sdsprintf(s, "Key%08d", i);
+            v = sdsprintf(v, "%08d", i);
+            if (_test_get(vDB, s, v, 0)==0) c++;
+        }
+        test_cond("get the whole block keys", c == i);
         IndexDB_Close(vDB);
 
         DeleteDir("indexDBTest/1");
         IndexDB_Open(vDB);
-        for (i = 0; i < IINDEX_MAX_CACHE_SIZE-10; i++) {
+        printf("test splinter block\n");
+        printf("---------------\n");
+        c = 0;
+        for (i = 0; i < IINDEX_BLOCK_SIZE; i++) {
             s = sdsprintf(s, "Key%08d", i);
             v = sdsprintf(v, "%08d", i);
-            test_put(vDB, s, v);
+            if (_test_put(vDB, s, v)) c++;
         }
-        test_cond("bgthread should start", vDB->thread_id);
-
+        test_cond("put a whole block", c = i);
+        test_put(vDB, "onanotherblock", "thisAnTherB");
+        test_cond("splinter block", vDB->indexes.item[0]->header.blockCount == IINDEX_SPLIT_COUNT);
+        IndexDB_Close(vDB);
+        IndexDB_Open(vDB);
+        c = 0;
+        for (i = 0; i < IINDEX_BLOCK_SIZE; i++) {
+            s = sdsprintf(s, "Key%08d", i);
+            v = sdsprintf(v, "%08d", i);
+            if (_test_get(vDB, s, v, 0)==0) c++;
+        }
+        test_cond("get the splinter block keys", c == i);
+        test_get(vDB, "onanotherblock", "thisAnTherB", 0);
+        IndexDB_Close(vDB);
+//*/
+        DeleteDir("indexDBTest/1");
+        IndexDB_Open(vDB);
+        printf("test splinter file\n");
+        printf("---------------\n");
+        c = 0;
+        for (i = 0; i < IINDEX_BLOCK_SIZE*IINDEX_MAX_BLOCK_COUNT; i++) {
+            s = sdsprintf(s, "Key%08d", i);
+            v = sdsprintf(v, "%08d", i);
+            if (_test_put(vDB, s, v)) c++;
+        }
+        test_cond("put a whole file", c = i);
+        test_put(vDB, "onanotherfile", "thisAnTherB");
+        //test_cond("splinter block", vDB->indexes.item[0]->header.blockCount == IINDEX_SPLIT_COUNT);
+        IndexDB_Close(vDB);
+        IndexDB_Open(vDB);
+        printf("indexes=%zd\n", darray_size(vDB->indexes));
+        c = 0;
+        for (i = 0; i < IINDEX_BLOCK_SIZE*IINDEX_MAX_BLOCK_COUNT; i++) {
+            s = sdsprintf(s, "Key%08d", i);
+            v = sdsprintf(v, "%08d", i);
+            test_get(vDB, s, v, 0);
+            //if (_test_get(vDB, s, v, 0)==0) c++;
+        }
+        //test_cond("get the splinter file keys", c == i);
+        test_get(vDB, "onanotherfile", "thisAnTherB", 0);
+//*/
         IndexDB_Free(vDB);
         if (s) sdsfree(s);
         if (v) sdsfree(v);

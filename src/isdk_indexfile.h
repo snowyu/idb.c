@@ -15,6 +15,9 @@
  *      MaxBlockCount: the index file can hold how many blocks.
  *      BlockBase: must be 2^n, 2, 4, 8, the default is 4.
  *      IndexFile: Header(IndexDBFileHeader + IndexDBBlockHeader) + Blocks
+ *      Change way:
+ *        insert sorted block, new a block when block full.
+ *        only splinter file, DO NOT splinter block!!
  *
  *        Version:  1.0
  *        Created:  2013/03/29
@@ -31,17 +34,20 @@
 //#include "isdk_config.h"
 #include "isdk_utils.h"
 #include "deps/darray.h"
+
 #include <pthread.h>
+#include <sched.h>
 
 #define IINDEX_EXT_NAME         ".idx"
 #define IINDEX_FILE_PATTERN     "*" IINDEX_EXT_NAME
 #define IINDEX_MAX_KEY_SIZE     256
 //Block size one block can contain how many items:
-#define IINDEX_BLOCK_SIZE       256 //1024*1024*4
+#define IINDEX_BLOCK_SIZE       4 //1024*1024*4
 #define IINDEX_BLOCK_BASE       4
-#define IINDEX_MAX_BLOCK_COUNT  1024
-#define IINDEX_MAX_CACHE_SIZE   256 //1024*4
+#define IINDEX_MAX_BLOCK_COUNT  7
+#define IINDEX_MAX_CACHE_SIZE   4 //1024*4
 #define IINDEX_SPLIT_COUNT      3
+#define IINDEX_MAX_OPENED_INDEX 4
 
 #define IINDEX_MAGIC_FLAG       (uint64_t *) "iIdxFile"
 #define IINDEX_FILE_VER         0                       //the current IndexFile version
@@ -56,6 +62,7 @@
 #define IINDEX_ERR_FILE_CLOSED      -7
 #define IINDEX_ERR_NOT_FOUND        -8
 #define IINDEX_ERR_PATH_IS_FILE     -9
+#define IINDEX_ERR_DELETED          -10
 
 // the value is 128 bit
 struct iIndexDBValue {
@@ -137,8 +144,9 @@ struct iIndexDB {
     bool                opened;                         //the indexDB is opened or not.
     sds                 path;                          //the index database path.
     DarrayIndexFiles    indexes;                        //the index files.
-    DarrayIndexItems    cache;                          //first insert here, write to disk when cache full
-    DarrayIndexItems    cacheSaving;                    //swap cacheSaving and cache, save cacheSaving when cache is full
+    DarrayIndexItems    *cache;                         //first insert here, write to disk when cache full
+    DarrayIndexItems    *cacheSaving;                   //swap cacheSaving and cache, save cacheSaving when cache is full
+    void                *indexesOpened;                 //the opened indexes.
 
     pthread_mutex_t     *c_lock;
     pthread_t           *thread_id;
