@@ -214,7 +214,6 @@
 #endif
 #endif
 
-
 #define SWAB16(aNumber) \
   ( \
    ((aNumber & 0x00ffU) << 8) | \
