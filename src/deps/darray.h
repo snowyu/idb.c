@@ -75,6 +75,7 @@
  *
  * Removal:
  *
+ *     void   darray_clear(darray(T) arr);
  *     void   darray_del(darray(T) arr, size_t index);
  *     T      darray_pop(darray(T) arr | darray_size(arr) != 0);
  *     T*     darray_pop_check(darray(T*) arr);
@@ -181,9 +182,24 @@ typedef darray(unsigned long)  darray_ulong;
 #define darray_alloc(arr)   ((arr).alloc)
 #define darray_empty(arr)   ((arr).size == 0)
 
+#define darray_clear(arr)   (arr).size = 0
 
 /*** Insertion (single item) ***/
 
+#define darray_insertEx(arr, index, val) do { \
+		darray_resize(arr, (arr).size+1); \
+        memmove((arr).item+index+1, (arr).item+index, ((arr).size-index)*sizeof(*(arr).item));\
+		memcpy((arr).item+index, &(val), sizeof(*(arr).item)); \
+	} while(0)
+#define darray_appendEx(arr, val) do { \
+		darray_resize(arr, (arr).size+1); \
+		memcpy((arr).item+(arr).size-1, &(val), sizeof(*(arr).item)); \
+	} while(0)
+#define darray_prependEx(arr, val) do { \
+		darray_resize(arr, (arr).size+1); \
+		memmove((arr).item+1, (arr).item, ((arr).size-1)*sizeof(*(arr).item)); \
+		memcpy((arr).item, &(val), sizeof(val)); \
+	} while(0)
 #define darray_insert(arr, index, ...) do { \
 		darray_resize(arr, (arr).size+1); \
         memmove((arr).item+index+1, (arr).item+index, ((arr).size-index)*sizeof(*(arr).item));\
