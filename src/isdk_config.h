@@ -52,6 +52,7 @@
 
 #define DREALLOC_FUNC zrealloc
 #define DFREE_FUNC zfree
+#define CALLOC_FUNC(count, size) zcalloc((count)*(size))
 
 /* a=target variable, b=bit number to act upon 0-n */
 #define BIT_SET(a,b) ((a) |= (1<<(b)))
