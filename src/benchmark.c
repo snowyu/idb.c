@@ -6,7 +6,7 @@ The math functions in math.h have implementations in libm.so (or .a for static l
 
 Interestingly, the C++ runtime libstdc++ requres libm, so if you compile a C++ program with GCC (g++), you will automatically get libm linked in.
 */
-//gcc --std=gnu99 -I. -Ideps -o benchmark benchmark.c idb_helpers.c isdk_xattr.c isdk_utils.c isdk_math.c isdk_string.c deps/sds.c deps/zmalloc.c deps/utf8proc.c -lm
+//gcc --std=gnu99 -I. -Ideps -o benchmark benchmark.c idb_helpers.c isdk_sds.c isdk_xattr.c isdk_utils.c isdk_math.c isdk_string.c deps/sds.c deps/zmalloc.c deps/utf8proc.c -lm
 
 
 #include "isdk_config.h"
@@ -343,7 +343,7 @@ static int procread(const char *path, int rnum, bool rnd){
     }
   }
   double vRunTime = now() - stime;
-  iprintf("record number: %lu\n", iSubkeyTotal(vPath, NULL, 0, NULL));
+  iprintf("record number: %lu\n", iSubkeyTotal(vPath, NULL, 0, NULL, dkFixed));
 //  iprintf("size: %llu\n", (unsigned long long)TIDBBasefsiz(tdb));
 //  sysprint();
   iprintf("time: %.3f\n", vRunTime);
