@@ -603,7 +603,7 @@ static inline int is_safe_char(char c, const char *aUnSafeChars) {
 }
 
 //return a new null-string if successful.
-static char *UrlEncode(char *s, const char *aUnSafeChars) {
+char *UrlEncode(char *s, const char *aUnSafeChars) {
   char *ret, *c, *ct;
   int i, len;
   //printf("UrlEncode: Encoding '%s'\n", s);
@@ -635,7 +635,7 @@ static char *UrlEncode(char *s, const char *aUnSafeChars) {
 /* convert(decode) the str directly.
  * return the new length for decoded string, It is always smaller than the orginal length.
  */
-static int UrlDecode(char *vStr, int len)
+int UrlDecode(char *vStr, int len)
 {
     char *dest = vStr;
     char *data = vStr;
