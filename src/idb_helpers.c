@@ -650,7 +650,7 @@ int iPut(const sds aDir, const char* aKey, const int aKeyLen, const char *aValue
     return result;
 }
 
-bool iDeleleInFile(const sds aKeyPath, const char *aAttribute)
+bool iDeleteInFile(const sds aKeyPath, const char *aAttribute)
 {
     bool result = false;
     sds vDir = sdsdup(aKeyPath);
@@ -664,7 +664,7 @@ bool iDeleleInFile(const sds aKeyPath, const char *aAttribute)
     return result;
 }
 
-bool iDeleleInXattr(const sds aKeyPath, const char *aAttribute)
+bool iDeleteInXattr(const sds aKeyPath, const char *aAttribute)
 {
     bool result = false;
     sds vDir = sdsdup(aKeyPath);
@@ -685,7 +685,7 @@ bool iDeleleInXattr(const sds aKeyPath, const char *aAttribute)
     return result;
 }
 
-bool iDelele(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType)
+bool iDelete(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType)
 {
     bool result = false;
     sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
@@ -1114,7 +1114,7 @@ int main(int argc, char **argv)
         test_cond("iGet(testdir, mytestkey, NULL, STORE_IN_FILE)",
                 result && sdslen(result) == 8 && memcmp(result, "hi world\0", 9) == 0
         );
-        test_cond("iDeleteAttr(testdir, mytestkey, STORE_IN_FILE)", iDelele(x, key, strlen(key),NULL, STORE_IN_FILE));
+        test_cond("iDeleteAttr(testdir, mytestkey, STORE_IN_FILE)", iDelete(x, key, strlen(key),NULL, STORE_IN_FILE));
         test_cond("IsDirValueExists(testdir/mytestkey, NULL) == false", !IsDirValueExists(path, sdslen(path), NULL));
         test_cond("iIsExists(testdir, mytestkey) should not be exists.", !iIsExists(x, key, strlen(key), NULL, STORE_IN_FILE));
         test_cond("iKeyDelete(testdir, mytestkey)", iKeyDelete(x, key, sdslen(key)));
@@ -1191,7 +1191,7 @@ int main(int argc, char **argv)
         test_getKey(x, "myhi/see/u2", "turn on value", NULL, STORE_IN_FILE);
         printf("---------------------------------------");
 
-        test_cond("iDelele(testdir, mytestkey, STORE_IN_XATTR)", iDelele(x, key, strlen(key),NULL, STORE_IN_XATTR));
+        test_cond("iDelete(testdir, mytestkey, STORE_IN_XATTR)", iDelete(x, key, strlen(key),NULL, STORE_IN_XATTR));
         test_cond("!IsXattrExists(testdir/mytestkey, IDB_VALUE_NAME)", !IsXattrExists(path, xa_value_name));
         test_cond("!iIsExists(testdir, mytestkey, STORE_IN_XATTR)", !iIsExists(x, key, strlen(key), NULL, STORE_IN_XATTR));
         test_cond("iKeyDelete(testdir, mytestkey)", iKeyDelete(x, key, sdslen(key)));

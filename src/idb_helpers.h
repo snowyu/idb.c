@@ -128,9 +128,9 @@
  int iPutInXattr(const sds aKeyPath, const char *aValue, const size_t aValueSize, const char *aAttribute, const TIDBProcesses aPartitionFullProcess);
  int iPut(const sds aDir, const char* aKey, const int aKeyLen, const char *aValue, const size_t aValueSize, const char *aAttribute, const int aStoreType); //deprecated
  int iPutInt(const sds aDir, const char* aKey, const int aKeyLen, int64_t aValue, const char *aAttribute, const int aStoreType);
- bool iDeleleInFile(const sds aKeyPath, const char *aAttribute);
- bool iDeleleInXattr(const sds aKeyPath, const char *aAttribute);
- bool iDelele(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType); //deprecated
+ bool iDeleteInFile(const sds aKeyPath, const char *aAttribute);
+ bool iDeleteInXattr(const sds aKeyPath, const char *aAttribute);
+ bool iDelete(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType); //deprecated
  //get attributes count.
  size_t iAttrCountInFile(const sds aKeyPath, const char* aPattern);
  //get the list of attributes
