@@ -11,7 +11,7 @@
  *       Compiler:  gcc
  *
  *         Author:  Riceball LEE(snowyu.lee@gmail.com)
- *        Company:  
+ *        Company:
  *
  * =====================================================================================
  */

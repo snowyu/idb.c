@@ -11,14 +11,14 @@
  *       Compiler:  gcc
  *
  *         Author:  Riceball LEE(snowyu.lee@gmail.com)
- *        Company:  
+ *        Company:
  *
  * =====================================================================================
  */
 
 #include <assert.h>
 #include <string.h>
-#include <math.h>
+//#include <math.h>
 #include "isdk_string.h"
 
 /* Compare two strings with case insensitive evaluation. */
@@ -270,9 +270,9 @@ int64_t strToInt64x(const char *str)
   return num;
 }
 
-#define LONG_DOUBLE_MAX_CHARS   16                // maximum number of columns of the long double
-
+//#define LONG_DOUBLE_MAX_CHARS   16                // maximum number of columns of the long double
 /* Convert a string to a real number. */
+/*
 double tcatof(const char *str){
   assert(str);
   while(*str > '\0' && *str <= ' '){
@@ -314,4 +314,4 @@ double tcatof(const char *str){
   }
   return num * sign;
 }
-
+*/
