@@ -28,10 +28,10 @@
  */
 
 #ifndef _ISDK_CONFIG_H
-#define __ISDK_CONFIG_H
+#define _ISDK_CONFIG_H
 
 #define HAVE_UNISTD_H
-#define GNUC
+/* #undef GNUC */
 #define _ANONYMOUS_STRUCT
 #define HAVE_STRUCT_DIRENT_D_NAMLEN
 #define HAVE_STRUCT_DIRENT_D_TYPE
