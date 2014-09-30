@@ -355,6 +355,24 @@ static inline size_t darray_next_alloc(size_t alloc, size_t need)
 #define darray_foreach_reverse(i, arr) \
 	for ((i) = &(arr).item[(arr).size]; (i)-- > &(arr).item[0]; )
 
+#define _array_bsearch(arr, i, cmp, low, high) \
+    int middle = 0;\
+    if (cmp(i, arr[high]) >= 0) return high; \
+    if (cmp(i, arr[low]) <= 0) return low; \
+    while (low <= high) {  \
+        middle = (low+high)/2; \
+        if (cmp(arr[middle], i) < 0) \
+            low = middle + 1; \
+        else if (cmp(arr[middle], i) > 0)\
+            high = middle - 1;\
+        else\
+            return middle;\
+    }\
+    return middle;
+
+#define _darray_bsearch(arr, i, cmp) \
+    int high=(arr).size-1, low = 0;\
+    _array_bsearch((arr).item, i, cmp, low, high)
 
 #endif /* CCAN_DARRAY_H */
 
