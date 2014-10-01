@@ -23,10 +23,10 @@
 
 #define SDSFreeAndNil(s) do {sdsfree(s); s = NULL;} while (0)
 
- #ifdef __cplusplus
- extern "C"
- {
- #endif
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 //create a NULL string with initlen space reserved
 //sdslen(s) should always be 0.
@@ -41,7 +41,7 @@ sds sdsprintf(sds s, const char *fmt, ...);
 
 static inline sds sdsSetlen(const sds s, int len) {
     sds result = s;
-    struct sdshdr *sh = (void*)(s-(sizeof(struct sdshdr)));
+    struct sdshdr *sh = (struct sdshdr*)(s-(sizeof(struct sdshdr)));
     int incr = len - sh->len;
     if (incr > sh->free) result = sdsMakeRoomFor(s, incr);
     sdsIncrLen(s, incr);
@@ -50,7 +50,7 @@ static inline sds sdsSetlen(const sds s, int len) {
 
 static inline sds sdsSetlen_(const sds s, int len) {
     sds result = s;
-    struct sdshdr *sh = (void*)(s-(sizeof(struct sdshdr)));
+    struct sdshdr *sh = (struct sdshdr*)(s-(sizeof(struct sdshdr)));
     if (len != sh->len && len <= (sh->free+sh->len)) {
         //int incr = len - sh->len;
         sh->free -= len - sh->len;
@@ -61,8 +61,7 @@ static inline sds sdsSetlen_(const sds s, int len) {
 }
 
 #ifdef __cplusplus
- extern "C"
- }
- #endif
+}
+#endif
 
 #endif
