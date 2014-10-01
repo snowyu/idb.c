@@ -41,7 +41,7 @@ void zlibc_free(void *ptr) {
 
 #include <string.h>
 #include <pthread.h>
-#include "isdk_config.h"
+#include "../isdk_config.h"
 #include "zmalloc.h"
 
 #ifdef HAVE_MALLOC_SIZE
@@ -67,7 +67,10 @@ void zlibc_free(void *ptr) {
 #define free(ptr) je_free(ptr)
 #endif
 
-#ifdef HAVE_ATOMIC
+#if defined(__ATOMIC_RELAXED)
+#define update_zmalloc_stat_add(__n) __atomic_add_fetch(&used_memory, (__n), __ATOMIC_RELAXED)
+#define update_zmalloc_stat_sub(__n) __atomic_sub_fetch(&used_memory, (__n), __ATOMIC_RELAXED)
+#elif defined(HAVE_ATOMIC)
 #define update_zmalloc_stat_add(__n) __sync_add_and_fetch(&used_memory, (__n))
 #define update_zmalloc_stat_sub(__n) __sync_sub_and_fetch(&used_memory, (__n))
 #else
@@ -85,7 +88,7 @@ void zlibc_free(void *ptr) {
 
 #endif
 
-#define update_zmalloc_stat_alloc(__n,__size) do { \
+#define update_zmalloc_stat_alloc(__n) do { \
     size_t _n = (__n); \
     if (_n&(sizeof(long)-1)) _n += sizeof(long)-(_n&(sizeof(long)-1)); \
     if (zmalloc_thread_safe) { \
@@ -109,23 +112,25 @@ static size_t used_memory = 0;
 static int zmalloc_thread_safe = 0;
 pthread_mutex_t used_memory_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-static void zmalloc_oom(size_t size) {
+static void zmalloc_default_oom(size_t size) {
     fprintf(stderr, "zmalloc: Out of memory trying to allocate %zu bytes\n",
         size);
     fflush(stderr);
     abort();
 }
 
+static void (*zmalloc_oom_handler)(size_t) = zmalloc_default_oom;
+
 void *zmalloc(size_t size) {
     void *ptr = malloc(size+PREFIX_SIZE);
 
-    if (!ptr) zmalloc_oom(size);
+    if (!ptr) zmalloc_oom_handler(size);
 #ifdef HAVE_MALLOC_SIZE
-    update_zmalloc_stat_alloc(zmalloc_size(ptr),size);
+    update_zmalloc_stat_alloc(zmalloc_size(ptr));
     return ptr;
 #else
     *((size_t*)ptr) = size;
-    update_zmalloc_stat_alloc(size+PREFIX_SIZE,size);
+    update_zmalloc_stat_alloc(size+PREFIX_SIZE);
     return (char*)ptr+PREFIX_SIZE;
 #endif
 }
@@ -133,13 +138,13 @@ void *zmalloc(size_t size) {
 void *zcalloc(size_t size) {
     void *ptr = calloc(1, size+PREFIX_SIZE);
 
-    if (!ptr) zmalloc_oom(size);
+    if (!ptr) zmalloc_oom_handler(size);
 #ifdef HAVE_MALLOC_SIZE
-    update_zmalloc_stat_alloc(zmalloc_size(ptr),size);
+    update_zmalloc_stat_alloc(zmalloc_size(ptr));
     return ptr;
 #else
     *((size_t*)ptr) = size;
-    update_zmalloc_stat_alloc(size+PREFIX_SIZE,size);
+    update_zmalloc_stat_alloc(size+PREFIX_SIZE);
     return (char*)ptr+PREFIX_SIZE;
 #endif
 }
@@ -155,26 +160,26 @@ void *zrealloc(void *ptr, size_t size) {
 #ifdef HAVE_MALLOC_SIZE
     oldsize = zmalloc_size(ptr);
     newptr = realloc(ptr,size);
-    if (!newptr) zmalloc_oom(size);
+    if (!newptr) zmalloc_oom_handler(size);
 
     update_zmalloc_stat_free(oldsize);
-    update_zmalloc_stat_alloc(zmalloc_size(newptr),size);
+    update_zmalloc_stat_alloc(zmalloc_size(newptr));
     return newptr;
 #else
     realptr = (char*)ptr-PREFIX_SIZE;
     oldsize = *((size_t*)realptr);
     newptr = realloc(realptr,size+PREFIX_SIZE);
-    if (!newptr) zmalloc_oom(size);
+    if (!newptr) zmalloc_oom_handler(size);
 
     *((size_t*)newptr) = size;
     update_zmalloc_stat_free(oldsize);
-    update_zmalloc_stat_alloc(size,size);
+    update_zmalloc_stat_alloc(size);
     return (char*)newptr+PREFIX_SIZE;
 #endif
 }
 
 /* Provide zmalloc_size() for systems where this function is not provided by
- * malloc itself, given that in that case we store an header with this
+ * malloc itself, given that in that case we store a header with this
  * information as the first bytes of every allocation. */
 #ifndef HAVE_MALLOC_SIZE
 size_t zmalloc_size(void *ptr) {
@@ -217,8 +222,8 @@ size_t zmalloc_used_memory(void) {
     size_t um;
 
     if (zmalloc_thread_safe) {
-#ifdef HAVE_ATOMIC
-        um = __sync_add_and_fetch(&used_memory, 0);
+#if defined(__ATOMIC_RELAXED) || defined(HAVE_ATOMIC)
+        um = update_zmalloc_stat_add(0);
 #else
         pthread_mutex_lock(&used_memory_mutex);
         um = used_memory;
@@ -236,6 +241,10 @@ void zmalloc_enable_thread_safeness(void) {
     zmalloc_thread_safe = 1;
 }
 
+void zmalloc_set_oom_handler(void (*oom_handler)(size_t)) {
+    zmalloc_oom_handler = oom_handler;
+}
+
 /* Get the RSS information in an OS-specific way.
  *
  * WARNING: the function zmalloc_get_rss() is not designed to be fast
@@ -244,9 +253,9 @@ void zmalloc_enable_thread_safeness(void) {
  *
  * For this kind of "fast RSS reporting" usages use instead the
  * function RedisEstimateRSS() that is a much faster (and less precise)
- * version of the funciton. */
+ * version of the function. */
 
-#if defined(HAVE_PROCFS)
+#if defined(HAVE_PROC_STAT)
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -315,6 +324,31 @@ size_t zmalloc_get_rss(void) {
 #endif
 
 /* Fragmentation = RSS / allocated-bytes */
-float zmalloc_get_fragmentation_ratio(void) {
-    return (float)zmalloc_get_rss()/zmalloc_used_memory();
+float zmalloc_get_fragmentation_ratio(size_t rss) {
+    return (float)rss/zmalloc_used_memory();
 }
+
+#if defined(HAVE_PROC_SMAPS)
+size_t zmalloc_get_private_dirty(void) {
+    char line[1024];
+    size_t pd = 0;
+    FILE *fp = fopen("/proc/self/smaps","r");
+
+    if (!fp) return 0;
+    while(fgets(line,sizeof(line),fp) != NULL) {
+        if (strncmp(line,"Private_Dirty:",14) == 0) {
+            char *p = strchr(line,'k');
+            if (p) {
+                *p = '\0';
+                pd += strtol(line+14,NULL,10) * 1024;
+            }
+        }
+    }
+    fclose(fp);
+    return pd;
+}
+#else
+size_t zmalloc_get_private_dirty(void) {
+    return 0;
+}
+#endif
