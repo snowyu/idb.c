@@ -28,7 +28,7 @@
  */
 
 #ifndef _ISDK_CONFIG_H
-#define __ISDK_CONFIG_H
+#define _ISDK_CONFIG_H
 
 #cmakedefine HAVE_UNISTD_H
 #cmakedefine GNUC
