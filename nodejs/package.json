@@ -1,0 +1,32 @@
+{
+  "name": "IDB",
+  "description": "iDB nodejs Binding",
+  "version": "0.0.1",
+  "author": "Riceball LEE <snowyu.lee@gmail.com>",
+  "maintainers": [
+    "Riceball LEE <snowyu.lee@gmail.com>"
+  ],
+  "gypfile": true,
+  "main": "./index.js",
+  "engines": {
+    "node": "0.10.x"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/snowyu/idb.js.git"
+  },
+  "keywords": [
+    "nosql",
+    "storage",
+    "key/value",
+    "database"
+  ],
+  "dependencies": {
+    "nan": "~1.3.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+      "test": "node test/index.js"
+  },
+  "license": "MIT"
+}
