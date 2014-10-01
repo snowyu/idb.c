@@ -966,7 +966,7 @@ static ssize_t _iSubkeysWalker(size_t aCount, const char* aDir, const char* aKey
     switch (aDuplicationKeyProcess)
     {
         case dkReserved: {
-            int s = 1;
+            //int s = 1;
             vItem = sdsnew(aKey);
             break;
         }
