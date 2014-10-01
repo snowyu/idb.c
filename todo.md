@@ -7,8 +7,15 @@
   * !+ Cache the key/value in the memory
 * !+ Mongrel2 Restful API
 
+# 2013-07-22
 
-#2013-03-10
+## IndexFileDB Disk Storage Internal Mechanism
+
+The data of the IndexFileDB is stored in a specified directory. It has a configuration file
+and many index files in it. There are many index blocks in a index file.
+
+
+# 2013-03-10
 
 * reconstruct idb_helpers funcs
   * keep IDBMaxPageCount as global options, others put into function.
