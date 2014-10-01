@@ -295,9 +295,9 @@ int IsDirectory(const char* aFileName);
 
 /*
   return
-     -1: file exits.
-      1: dir exits.
-      0: no dir exits.
+     -1: file exists.
+      1: dir exists.
+      0: no path exists.
 */
 static inline int DirectoryExists(const char *aFolderPath){
     Stat vFileinfo;
