@@ -29,3 +29,4 @@ casket.*
 config.status
 aclocal.m4
 build/
+node_modules
