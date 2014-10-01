@@ -1,15 +1,15 @@
 /*********************************************************************
- * NAN - Native Abstractions for Node.js
+ * iDB - Key/Value NOSQL Data Storage for Node.js
  *
- * Copyright (c) 2014 NAN contributors
+ * Copyright (c) 2014 Riceball LEE
  *
- * MIT License <https://github.com/rvagg/nan/blob/master/LICENSE.md>
+ * MIT License
  ********************************************************************/
 
 #include <node.h>
 #include <nan.h>
 #include "idb_helpers.h"
-#include "./sync.h"
+#include "./idb_helpers_sync.h"
 
 using v8::Number;
 

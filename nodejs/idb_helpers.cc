@@ -1,5 +1,5 @@
 /*********************************************************************
- * iDB binding for Nodejs
+ * iDB - Key/Value NOSQL Data Storage for Node.js
  *
  * Copyright (c) 2014 Riceball LEE
  *
@@ -8,8 +8,8 @@
 
 #include <node.h>
 #include <nan.h>
-#include "./sync.h"
-#include "./async.h"
+#include "./idb_helpers_sync.h"
+#include "./idb_helpers_async.h"
 
 using v8::FunctionTemplate;
 using v8::Handle;

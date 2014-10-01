@@ -1,15 +1,15 @@
 /*********************************************************************
- * NAN - Native Abstractions for Node.js
+ * iDB - Key/Value NOSQL Data Storage for Node.js
  *
- * Copyright (c) 2014 NAN contributors
+ * Copyright (c) 2014 Riceball LEE
  *
- * MIT License <https://github.com/rvagg/nan/blob/master/LICENSE.md>
+ * MIT License
  ********************************************************************/
 
 #include <node.h>
 #include <nan.h>
 #include "idb_helpers.h"
-#include "./async.h"
+#include "./idb_helpers_async.h"
 
 using v8::Function;
 using v8::Local;
@@ -32,8 +32,6 @@ class PutInFileWorker : public NanAsyncWorker {
   // should go on `this`.
   void Execute () {
     int l = value ? sdslen(value) : 0;
-    printf("key=%s\n",key);
-    printf("value.len=%d\n",l);
     result = iPutInFile(key, value, l, attr, partitionKeyWay);
     sdsfree(key);sdsfree(value);sdsfree(attr);
   }
@@ -44,12 +42,25 @@ class PutInFileWorker : public NanAsyncWorker {
   void HandleOKCallback () {
     NanScope();
 
+    Local<Value> error;
+    //String error = NULL; 
+    
+    if (result == 0) {
+        error = NanNull();
+    }
+    else if (result == -1) {
+        error = NanError("The same filename is exists, can not create folder to keep value", result);
+    }
+    else
+        error = NanError(strerror(result), result);
+    
     Local<Value> argv[] = {
-        NanNull()
-      , NanNew<Number>(result)
+        error
+      //, NanNew<Number>(result)
     };
 
-    callback->Call(2, argv);
+    //callback->Call(2, argv);
+    callback->Call(1, argv);
   }
 
  private:

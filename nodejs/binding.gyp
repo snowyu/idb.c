@@ -3,10 +3,9 @@
     {
       "target_name": "idb",
       "sources": [
-        "idb.cc",
-        "pi_est.cc",
-        "sync.cc",
-        "async.cc"
+        "idb_helpers.cc",
+        "idb_helpers_sync.cc",
+        "idb_helpers_async.cc"
       ],
       'dependencies': [
         '../libidb.gyp:idb'
