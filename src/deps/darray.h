@@ -135,7 +135,7 @@ typedef void (*DarrayFreeHandler) (void *ptr);
 #define darray_free(arr) do {DFREE_FUNC((arr).item);darray_init(arr);} while(0)
 #define darray_free_all(arr) do {\
         if((arr).onFree) {\
-            int i; \
+            size_t i; \
             for (i = 0; i < (arr).size; i++) {\
                 if ((arr).item[i]) (arr).onFree((arr).item[i]); \
             } \
