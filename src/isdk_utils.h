@@ -128,13 +128,13 @@ typedef darray(const char*)     dCStrArray;
 typedef darray(sds)             dStringArray;
 static void _darray_sds_free_handler(void* aPtr) {
     if (aPtr) {
-        sdsfree(aPtr);
+        sdsfree((sds)aPtr);
         aPtr = NULL;
     }
 }
 #define dStringArray_init(arr) do {(arr).item=0; (arr).size=0; (arr).alloc=0;(arr).onFree=_darray_sds_free_handler;} while(0)
 static inline dStringArray* dStringArray_new() {
-    dStringArray* result = zmalloc(sizeof(dStringArray));
+    dStringArray* result = (dStringArray*)zmalloc(sizeof(dStringArray));
     dStringArray_init(*result);
     return result;
 }
@@ -144,7 +144,7 @@ static inline void dStringArray_free(dStringArray* arr) {
 }
 static inline ssize_t dStringArray_indexOf(const dStringArray* arr, sds str) {
     ssize_t result = -1;
-    int i;
+    size_t i;
     for (i = 0; i < (*arr).size; i++) {
         if ((*arr).item[i]) {
             if (strcmp((*arr).item[i], str) == 0) {
@@ -157,7 +157,7 @@ static inline ssize_t dStringArray_indexOf(const dStringArray* arr, sds str) {
 }
 static inline ssize_t dCStrArray_indexOf(const dCStrArray* arr, const char* str) {
     ssize_t result = -1;
-    int i;
+    size_t i;
     for (i = 0; i < (*arr).size; i++) {
         if ((*arr).item[i]) {
             if (strcmp((*arr).item[i], str) == 0) {
