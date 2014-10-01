@@ -1,9 +1,9 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 PROJECT(iDB)
 set(PACKAGE_NAME idb)
-set(PACKAGE_VERSION 0.1)
+set(PACKAGE_VERSION 0.1.1)
 set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
-set(PACKAGE_BUGREPORT "riceball.lee@gmail.com")
+set(PACKAGE_BUGREPORT "snowyu.lee@gmail.com")
 if( CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR AND NOT MSVC_IDE )
   message(FATAL_ERROR "In-source builds are not allowed.
 CMake would overwrite the makefiles distributed with iDB.
