@@ -12,6 +12,8 @@
 #include <node.h>
 #include <nan.h>
 
+NAN_METHOD(SetMaxPageSizeSync);
 NAN_METHOD(PutInFileSync);
+NAN_METHOD(GetInFileSync);
 
 #endif  // IDB_HELPERS_SYNC_H_

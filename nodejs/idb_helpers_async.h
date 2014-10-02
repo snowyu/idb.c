@@ -13,5 +13,6 @@
 #include <nan.h>
 
 NAN_METHOD(PutInFileAsync);
+NAN_METHOD(GetInFileAsync);
 
 #endif  // IDB_HELPERS_ASYNC_H_

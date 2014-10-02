@@ -8,12 +8,16 @@
 
 #include <node.h>
 #include <nan.h>
+#include <string>
 #include "idb_helpers.h"
 #include "utils.h"
 #include "./idb_helpers_sync.h"
 
-using v8::Number;
-using v8::String;
+using namespace std;
+using namespace v8;
+
+//using v8::Number;
+//using v8::String;
 
 // synchronous access to the functions
 // create a v8:array:
@@ -41,6 +45,26 @@ Local<Value> item = arr->Get(0);
 //the same as the *NanUtf8String:
 static inline const char* ToCString(const v8::String::Utf8Value& value) {
   return *value;
+}
+
+NAN_METHOD(SetMaxPageSizeSync) {
+  NanScope();
+  bool result = false;
+  if (args.Length() >= 1) {
+      Local<Value> param;
+      param = args[0];
+      //if (!param->IsUndefined() && !param->IsNull()) {
+      if (param->IsNumber()) {
+          IDBMaxPageCount = param->Uint32Value();
+          result = true;
+      }
+  }
+  else {
+      //
+      NanThrowTypeError("where my key argument value? u type nothing?");
+      NanReturnUndefined();
+  }
+  NanReturnValue(NanNew<Boolean>(result));
 }
 
 
@@ -125,6 +149,47 @@ NAN_METHOD(PutInFileSync) {
   sdsfree(value);
   sdsfree(attr);
   NanReturnValue(NanNew<Number>(result));
+}
+
+NAN_METHOD(GetInFileSync) {
+  NanScope();
+
+  int l = args.Length();
+  sds attr  = NULL;
+  sds key   = NULL;
+  Local<Value> param;
+  if (l >= 1) {
+      param = args[0];
+      if (!param->IsUndefined() && !param->IsNull()) {
+          key = sdsnew(*NanUtf8String(param));
+      }
+  }
+
+  if (!key)
+  {
+      NanThrowTypeError("where my key argument value? u type nothing?");
+      NanReturnUndefined();
+  }
+  if (l >= 2) {
+      param = args[1];
+      if (!param->IsUndefined() && !param->IsNull()) {
+          attr = sdsnew(*NanUtf8String(param));
+      }
+  }
+  sds value = iGetInFile(key, attr);
+#ifdef DEBUG
+  printf("GetInFileSync: value=%s, key=%s, attr=%s\n", value, key, attr);
+#endif
+  Local<Value> result;
+  if (value)
+      result = String::New(value);
+  else
+      result = NanUndefined();
+
+  //result = String::New(value);
+  sdsfree(key);sdsfree(attr);sdsfree(value);
+
+  NanReturnValue(result);
 }
 
 

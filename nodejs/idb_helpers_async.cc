@@ -124,3 +124,81 @@ NAN_METHOD(PutInFileAsync) {
   NanAsyncQueueWorker(new PutInFileWorker(callback, key, value, attr, partitionKeyWay));
   NanReturnUndefined();
 }
+
+
+class GetInFileWorker : public NanAsyncWorker {
+ public:
+  GetInFileWorker(NanCallback *callback, sds key, sds attr)
+    : NanAsyncWorker(callback), key(key), attr(attr), value(NULL) {}
+  ~GetInFileWorker() {}
+
+  // Executed inside the worker-thread.
+  // It is not safe to access V8, or V8 data structures
+  // here, so everything we need for input and output
+  // should go on `this`.
+  void Execute () {
+    value = iGetInFile(key, attr);
+#ifdef DEBUG
+    printf("GetInFileAsync:key=%s, value=%s, attr=%s\n",key, value, attr);
+#endif
+    sdsfree(key);sdsfree(attr);
+  }
+
+  // Executed when the async work is complete
+  // this function will be run inside the main event loop
+  // so it is safe to use V8 again
+  void HandleOKCallback () {
+    NanScope();
+
+    Local<Value> result;
+    if (value) {
+        result = String::New(value);
+        sdsfree(value);
+    }
+    else
+        result = NanUndefined();
+    
+    Local<Value> argv[] = {
+        NanNull()
+      , result
+    };
+
+    callback->Call(2, argv);
+  }
+
+ private:
+  sds key;
+  sds attr;
+  sds value;
+};
+
+// Asynchronous access to the function
+NAN_METHOD(GetInFileAsync) {
+  NanScope();
+
+  int l = args.Length();
+  sds attr  = NULL;
+  sds key   = NULL;
+  Local<Value> param;
+  if (l >= 3) {
+      param = args[1];
+      if (!param->IsUndefined() && !param->IsNull()) {
+          attr = sdsnew(*NanUtf8String(param));
+      }
+  }
+  if (l >= 2) {
+      param = args[0];
+      if (!param->IsUndefined() && !param->IsNull()) {
+          key = sdsnew(*NanUtf8String(param));
+      }
+  }
+  if (!key || l <= 1) {
+      NanThrowTypeError("where my key argument value? u type nothing? or missing the callback?");
+      NanReturnUndefined();
+  }
+
+  NanCallback *callback = new NanCallback(args[l-1].As<Function>());
+
+  NanAsyncQueueWorker(new GetInFileWorker(callback, key, attr));
+  NanReturnUndefined();
+}
