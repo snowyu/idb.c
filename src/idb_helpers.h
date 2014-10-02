@@ -42,6 +42,7 @@
  #define IDB_PART_DIR_PREFIX        "."                       //the prefix of the split key partition dir.
  #define IDB_PART_DIR_PREFIX_CHR    IDB_PART_DIR_PREFIX[0]
 
+ #define IDB_ERR_INVALID_UTF8       UTF8PROC_ERROR_INVALIDUTF8
  #define IDB_ERR_PART_FULL          -100  //the iDB local partition is full.
  #define IDB_ERR_PART_DUP_KEY       -101  //the Duplication Key occur
  #define IDB_OK                     0
@@ -91,6 +92,7 @@
  //dkStopped: stopped and raise error.
  extern TIDBProcesses IDBPartitionFullProcess;//  = dkIgnored;
 
+ const char* idbErrorStr(int aErrno);
  sds GetRelativePath(const char* aFrom, const int aFromLen, const char* aTo, const int aToLen);
 
  //Low-Level functions

@@ -56,6 +56,22 @@
  //dkStopped: stopped and raise error.
  TIDBProcesses IDBPartitionFullProcess  = dkIgnored;
 
+const char* idbErrorStr(int aErrno)
+{
+    switch (aErrno) {
+        case IDB_OK:
+            return "Sucessful.";
+        case IDB_ERR_PART_FULL:
+            return "the partition is full";
+        case IDB_ERR_PART_DUP_KEY:
+            return "the key is duplication for partition.";
+        case IDB_ERR_INVALID_UTF8:
+            return "Invalid utf8 char in the string.";
+        default:
+            return "Unknown error.";
+    }
+}
+
 static inline sds _make_attr_file_name(const char *aDir, const int aDirLen, const char *aAttribute)
 {
     sds vFile = sdsnewlen(aDir, aDirLen);
