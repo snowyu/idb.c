@@ -47,6 +47,25 @@ static inline const char* ToCString(const v8::String::Utf8Value& value) {
   return *value;
 }
 
+NAN_METHOD(ErrorStrSync) {
+  NanScope();
+  if (args.Length() >= 1) {
+      Local<Value> param;
+      param = args[0];
+      //if (!param->IsUndefined() && !param->IsNull()) {
+      if (param->IsNumber()) {
+          int errNo = param->Uint32Value();
+          const char* s = idbErrorStr(errNo);
+          Local<Value> result = String::New(s);
+          NanReturnValue(result);
+      }
+  }
+  else {
+      //
+      NanThrowTypeError("where my errno argument value? u type nothing?");
+  }
+  NanReturnUndefined();
+}
 NAN_METHOD(SetMaxPageSizeSync) {
   NanScope();
   bool result = false;
@@ -61,7 +80,7 @@ NAN_METHOD(SetMaxPageSizeSync) {
   }
   else {
       //
-      NanThrowTypeError("where my key argument value? u type nothing?");
+      NanThrowTypeError("where my MaxPageSize argument value? u type nothing?");
       NanReturnUndefined();
   }
   NanReturnValue(NanNew<Boolean>(result));
@@ -72,7 +91,7 @@ NAN_METHOD(PutInFileSync) {
   NanScope();
 
   int l = args.Length();
-  TIDBProcesses partitionKeyWay = dkFixed;
+  TIDBProcesses partitionFull = dkStopped;
   sds attr  = NULL;
   sds key   = NULL;
   sds value = NULL;
@@ -80,7 +99,7 @@ NAN_METHOD(PutInFileSync) {
   if (l >= 4) {
       param = args[3];
       if (!param->IsUndefined() && !param->IsNull()) {
-          partitionKeyWay = (TIDBProcesses) param->Uint32Value();
+          partitionFull = (TIDBProcesses) param->Uint32Value();
       }
   }
   if (l >= 3) {
@@ -140,10 +159,10 @@ NAN_METHOD(PutInFileSync) {
       NanReturnUndefined();
   }
 #ifdef DEBUG
-  printf("PutInFileSync:key=%s, value=%s,attr=%s, partitionKeyWay=%d\n",key, value, attr, partitionKeyWay);
+  printf("PutInFileSync:key=%s, value=%s,attr=%s, partitionFull=%d\n",key, value, attr, partitionFull);
 #endif
   l = value ? strlen(value):0;
-  int result = iPutInFile(key, value, l, attr, partitionKeyWay);
+  int result = iPutInFile(key, value, l, attr, partitionFull);
   //printf("result=%d\n", result);
   sdsfree(key);
   sdsfree(value);

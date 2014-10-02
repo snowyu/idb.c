@@ -12,6 +12,7 @@
 #include <node.h>
 #include <nan.h>
 
+NAN_METHOD(ErrorStrSync);
 NAN_METHOD(SetMaxPageSizeSync);
 NAN_METHOD(PutInFileSync);
 NAN_METHOD(GetInFileSync);

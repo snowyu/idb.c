@@ -55,8 +55,9 @@ class PutInFileWorker : public NanAsyncWorker {
     else if (result == -1) {
         error = NanError("The same filename is exists, can not create folder to keep value", result);
     }
-    else
-        error = NanError(strerror(result), result);
+    else {
+        error = NanError(idbErrorStr(result), result);
+    }
     
     Local<Value> argv[] = {
         error
