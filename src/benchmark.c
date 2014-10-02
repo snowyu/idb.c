@@ -20,10 +20,10 @@ Interestingly, the C++ runtime libstdc++ requres libm, so if you compile a C++ p
 
 
 //#include "tcutil.h"
-//#include "deps/zmalloc.h"
 #include "isdk_math.h"
 #include "isdk_string.h"
 #include "idb_helpers.h"
+#include "deps/zmalloc.h"
 
 #define RECBUFSIZ      48                // buffer for records
 
@@ -81,7 +81,7 @@ static int myrand(int range){
   do {
     result = _myrand(range);
   } while (isInIntArray(gRandoms, result));
-  darray_push(gRandoms, result);
+  darray_push(gRandoms, *&result);
   return result;
 }
 
