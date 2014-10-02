@@ -41,8 +41,8 @@
 #include <fcntl.h>
 #include <fnmatch.h>
 #include <dirent.h>
-#include "deps/zmalloc.h"
 #include "isdk_utils.h"
+#include "deps/zmalloc.h"
 
 static const char *progname = "??";
 
