@@ -36,6 +36,7 @@
 #include <fnmatch.h>
 #include <assert.h>
 
+#include "deps/zmalloc.h"
 #include "deps/utf8proc.h"
 
 #include "idb_helpers.h"
