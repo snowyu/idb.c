@@ -8,6 +8,7 @@
 
 #include <node.h>
 #include <nan.h>
+#include "utils.h"
 #include "idb_helpers.h"
 #include "./idb_helpers_async.h"
 
@@ -32,6 +33,9 @@ class PutInFileWorker : public NanAsyncWorker {
   // should go on `this`.
   void Execute () {
     int l = value ? sdslen(value) : 0;
+#ifdef DEBUG
+    printf("PutInFileAsync:key=%s, value=%s, attr=%s, partitionKeyWay=%d\n",key, value, attr, partitionKeyWay);
+#endif
     result = iPutInFile(key, value, l, attr, partitionKeyWay);
     sdsfree(key);sdsfree(value);sdsfree(attr);
   }
@@ -80,21 +84,38 @@ NAN_METHOD(PutInFileAsync) {
   sds attr  = NULL;
   sds key   = NULL;
   sds value = NULL;
-  if (l >= 5) partitionKeyWay = (TIDBProcesses) args[3]->Uint32Value();
+  Local<Value> param;
+  if (l >= 5) {
+      param = args[3];
+      if (!param->IsUndefined() && !param->IsNull()) {
+          partitionKeyWay = (TIDBProcesses) param->Uint32Value();
+      }
+  }
   if (l >= 4) {
-      attr  = *NanUtf8String(args[2]);
-      if (attr) attr = sdsnew(attr);
+      param = args[2];
+      if (!param->IsUndefined() && !param->IsNull()) {
+        attr = sdsnew(*NanUtf8String(param));
+      }
   }
   if (l >= 3) {
-      value = *NanUtf8String(args[1]);
-      if (value) value = sdsnew(value);
+      param = args[1];
+      if (!param->IsUndefined() && !param->IsNull()) {
+          value = sdsnew(*NanUtf8String(param));
+      }
   }
   if (l >= 2) {
-      key   = *NanUtf8String(args[0]);
-      if (key) key = sdsnew(key);
+      param = args[0];
+      if (!param->IsUndefined() && !param->IsNull()) {
+          //this would error:
+          //const char* s= *NanUtf8String(args[0]);
+          //printf("async key=%s\n", s);
+          //key = sdsnew(s);
+          //printf("async key=%x,%s\n", key,key);
+          key = sdsnew(*NanUtf8String(param));
+        }
   }
-  else {
-      NanThrowTypeError("where my key argument? u type nothing?");
+  if (!key || l <= 1) {
+      NanThrowTypeError("where my key argument value? u type nothing? or missing the callback?");
       NanReturnUndefined();
   }
 
