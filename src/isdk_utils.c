@@ -41,6 +41,7 @@
 #include <fcntl.h>
 #include <fnmatch.h>
 #include <dirent.h>
+#include "deps/zmalloc.h"
 #include "isdk_utils.h"
 
 static const char *progname = "??";
@@ -71,6 +72,27 @@ void warnx(const char *fmt, ...)
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	fprintf(stderr, "\n");
+}
+
+dStringArray* dStringArray_new()
+{
+    dStringArray* result = (dStringArray*)zmalloc(sizeof(dStringArray));
+    dStringArray_init(*result);
+    return result;
+}
+///*
+void dStringArray_free(dStringArray* arr)
+{
+    darray_free_all(*arr);
+    zfree(arr);
+}
+//*/
+void darray_zfree_handler(void* aPtr)
+{
+    if (aPtr) {
+        zfree(aPtr);
+        aPtr = NULL;
+    }
 }
 
 //Author: J Leffler

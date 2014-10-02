@@ -28,7 +28,6 @@
  #include <stdarg.h>
 //#include <fts.h>            /* Traverse a file hierarchy. */
 
- #include "deps/zmalloc.h"
  /*use the redis C dynamic strings library: sds.h*/
  #include "isdk_sds.h"
  #include "deps/darray.h"
@@ -133,15 +132,11 @@ static void _darray_sds_free_handler(void* aPtr) {
     }
 }
 #define dStringArray_init(arr) do {(arr).item=0; (arr).size=0; (arr).alloc=0;(arr).onFree=_darray_sds_free_handler;} while(0)
-static inline dStringArray* dStringArray_new() {
-    dStringArray* result = (dStringArray*)zmalloc(sizeof(dStringArray));
-    dStringArray_init(*result);
-    return result;
-}
-static inline void dStringArray_free(dStringArray* arr) {
-    darray_free_all(*arr);
-    zfree(arr);
-}
+//#define dStringArray_free(arr) do {darray_free_all(*arr);zfree(arr);} while(0)
+dStringArray* dStringArray_new();
+void dStringArray_free(dStringArray* arr);
+void darray_zfree_handler(void* aPtr);
+
 static inline ssize_t dStringArray_indexOf(const dStringArray* arr, sds str) {
     ssize_t result = -1;
     size_t i;
@@ -167,13 +162,6 @@ static inline ssize_t dCStrArray_indexOf(const dCStrArray* arr, const char* str)
         }
     }
     return result;
-}
-static void darray_zfree_handler(void* aPtr)
-{
-    if (aPtr) {
-        zfree(aPtr);
-        aPtr = NULL;
-    }
 }
 
 
