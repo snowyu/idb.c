@@ -67,8 +67,13 @@ const char* idbErrorStr(int aErrno)
             return "the key is duplication for partition.";
         case IDB_ERR_INVALID_UTF8:
             return "Invalid utf8 char in the string.";
+        case IDB_ERR_DUP_FILE_NAME:
+            return "can not create the key dir for the same file is exists.";
         default:
-            return "Unknown error.";
+            if (aErrno > 0)
+                return strerror(aErrno);
+            else
+                return "Unknown error.";
     }
 }
 
@@ -143,15 +148,16 @@ int64_t IncrByDirValue(const char *aDir, const int aDirLen, const int64_t aValue
 {
     int64_t result = 0;
     char* vEnd = NULL;
-    off_t vSize;
+    off_t vSize, t;
     sds vFile = _make_attr_file_name(aDir, aDirLen, aAttribute);
     int fd = open(vFile, O_RDWR|O_CREAT, O_RW_RW_R__PERMS);
     if (fd >= 0) {
         vSize = lseek(fd, 0L, SEEK_END);
-        if (vSize) {
+        if (vSize && vSize <= 32) {
             lseek(fd, 0L, SEEK_SET);
             vFile = sdsMakeRoomFor(vFile, vSize);
-            vSize = read(fd, vFile, vSize);
+            t = read(fd, vFile, vSize);
+            assert(t == vSize, "can not read all the file.")
             sdsIncrLen(vFile, vSize);
             result = strtoll(vFile, &vEnd, 0);
             if (errno) {
@@ -161,7 +167,8 @@ int64_t IncrByDirValue(const char *aDir, const int aDirLen, const int64_t aValue
         }
         result += aValue;
         vFile = sdsprintf(vFile, "%lld", result);
-        vSize = write(fd, vFile, sdslen(vFile));
+        if (sdslen(vFile) < vSize) ftruncate(fd, sdslen(vFile));
+        vSize = pwrite(fd, vFile, sdslen(vFile), 0);
         //if (vSize == aValueSize) result = true;
         close(fd);
     }
@@ -351,7 +358,8 @@ sds iFindKeyDirToPut(sds aDir, const int aMaxItemCount, const TIDBProcesses aPar
                 vDir = sdsJoinPathLen(vDir, vUtf8Char, sdslen(vUtf8Char));
             }
             else 
-            if (aPartitionFullProcess == dkStopped) {
+            //if (aPartitionFullProcess == dkStopped)
+            {
                 errno = IDB_ERR_PART_FULL;
                 sdsfree(vDir);
                 vDir = NULL;
@@ -574,8 +582,10 @@ int64_t iIncr(const sds aDir, const char* aKey, const int aKeyLen, const char *a
 
 int64_t iIncrByInFile(const sds aKeyPath, int64_t aValue, const char *aAttribute, const TIDBProcesses aPartitionFullProcess)
 {
-    sds vDir = NULL;
+    errno = 0;
+    sds vDir = sdsdup(aKeyPath);
     if (vDir && IDBMaxPageCount > 0) {
+        //if iFindKeyDirToPut return NULL, it(iFindKeyDirToPut) will free the vDir.
         vDir = iFindKeyDirToPut(vDir, IDBMaxPageCount, aPartitionFullProcess);
         if (vDir == NULL) return errno;
     }
@@ -584,15 +594,12 @@ int64_t iIncrByInFile(const sds aKeyPath, int64_t aValue, const char *aAttribute
         ForceDirectories(vDir, O_RWXRWXR_XPERMS);
     }
     else if (result == PATH_IS_FILE) {//File Already Exists Error:
-        return result;
+        errno = IDB_ERR_DUP_FILE_NAME;
     }
-    if(vDir) {
+    if (errno == 0) {
         result = IncrByDirValue(vDir, sdslen(vDir), aValue, aAttribute);
-        sdsfree(vDir);
     }
-    else {
-        result = IncrByDirValue(aKeyPath, sdslen(aKeyPath), aValue, aAttribute);
-    }
+    sdsfree(vDir);
     
     return result;
 }

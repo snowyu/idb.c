@@ -45,6 +45,7 @@
  #define IDB_ERR_INVALID_UTF8       UTF8PROC_ERROR_INVALIDUTF8
  #define IDB_ERR_PART_FULL          -100  //the iDB local partition is full.
  #define IDB_ERR_PART_DUP_KEY       -101  //the Duplication Key occur
+ #define IDB_ERR_DUP_FILE_NAME      PATH_IS_FILE  //can not create the key for the same name file exists.
  #define IDB_OK                     0
 
  //the store types:
@@ -124,8 +125,9 @@
  int64_t iIncrBy(const sds aDir, const char* aKey, const int aKeyLen, long aValue, const char *aAttribute, const int aStoreType);
  int64_t iDecr(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType);
  int64_t iIncr(const sds aDir, const char* aKey, const int aKeyLen, const char *aAttribute, const int aStoreType);
+ //iIncrByInFile: the errno = 0 if successful, or error
  int64_t iIncrByInFile(const sds aKeyPath, int64_t aValue, const char *aAttribute, const TIDBProcesses aPartitionFullProcess);
- //result = 0 means ok, ENOEXEC means no operation, -1(PATH_IS_FILE) means the same file name exists error, 
+ //result = 0 means ok, ENOEXEC means no operation, IDB_ERR_DUP_FILE_NAME means the same file name exists error, 
  int iPutInFile(const sds aKeyPath, const char *aValue, const size_t aValueSize, const char *aAttribute, const TIDBProcesses aPartitionFullProcess);
  int iPutInXattr(const sds aKeyPath, const char *aValue, const size_t aValueSize, const char *aAttribute, const TIDBProcesses aPartitionFullProcess);
  int iPut(const sds aDir, const char* aKey, const int aKeyLen, const char *aValue, const size_t aValueSize, const char *aAttribute, const int aStoreType); //deprecated
