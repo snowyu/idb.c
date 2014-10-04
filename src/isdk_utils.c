@@ -142,6 +142,7 @@ int ForceDirectories(const char* aFolderPath, mode_t aMode)
     }
     if (status == 0)
         status = do_mkdir(aFolderPath, aMode);
+        if (status == 0) errno = 0;
     free(copypath);
     return (status);
 }
