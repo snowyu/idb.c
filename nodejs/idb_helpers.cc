@@ -21,10 +21,14 @@ using v8::Number;
 // Expose synchronous and asynchronous access to our
 // Estimate() function
 void InitAll(Handle<Object> exports) {
+  exports->Set(NanNew<String>("IDB_KEY_TYPE_NAME"),
+    NanNew<String>(IDB_KEY_TYPE_NAME));
+  exports->Set(NanNew<String>("IDB_VALUE_NAME"),
+    NanNew<String>(IDB_VALUE_NAME));
   exports->Set(NanNew<String>("dkStopped"),
     NanNew<Number>(dkStopped));
   exports->Set(NanNew<String>("dkIgnored"),
-    NanNew<Number>(dkStopped));
+    NanNew<Number>(dkIgnored));
   exports->Set(NanNew<String>("IDB_OK"),
     NanNew<Number>(IDB_OK));
   exports->Set(NanNew<String>("IDB_ERR_PART_FULL"),
@@ -33,6 +37,8 @@ void InitAll(Handle<Object> exports) {
     NanNew<Number>(IDB_ERR_PART_DUP_KEY));
   exports->Set(NanNew<String>("IDB_ERR_INVALID_UTF8"),
     NanNew<Number>(IDB_ERR_INVALID_UTF8));
+  exports->Set(NanNew<String>("IDB_ERR_DUP_FILE_NAME"),
+    NanNew<Number>(IDB_ERR_DUP_FILE_NAME));
 
   exports->Set(NanNew<String>("errorStr"),
     NanNew<FunctionTemplate>(ErrorStrSync)->GetFunction());
@@ -48,6 +54,16 @@ void InitAll(Handle<Object> exports) {
     NanNew<FunctionTemplate>(GetInFileSync)->GetFunction());
   exports->Set(NanNew<String>("getInFile"),
     NanNew<FunctionTemplate>(GetInFileAsync)->GetFunction());
+
+  exports->Set(NanNew<String>("isExistsInFileSync"),
+    NanNew<FunctionTemplate>(IsExistsInFileSync)->GetFunction());
+  exports->Set(NanNew<String>("isExistsInFile"),
+    NanNew<FunctionTemplate>(IsExistsInFileAsync)->GetFunction());
+
+  exports->Set(NanNew<String>("incrByInFileSync"),
+    NanNew<FunctionTemplate>(IncrByInFileSync)->GetFunction());
+  exports->Set(NanNew<String>("incrByInFile"),
+    NanNew<FunctionTemplate>(IncrByInFileAsync)->GetFunction());
 }
 
 NODE_MODULE(idb, InitAll)

@@ -9,6 +9,7 @@
 #include <node.h>
 #include <nan.h>
 #include <string>
+#include <errno.h>
 #include "idb_helpers.h"
 #include "utils.h"
 #include "./idb_helpers_sync.h"
@@ -43,9 +44,11 @@ Local<Value> item = arr->Get(0);
  */
 
 //the same as the *NanUtf8String:
+/*
 static inline const char* ToCString(const v8::String::Utf8Value& value) {
   return *value;
 }
+*/
 
 NAN_METHOD(ErrorStrSync) {
   NanScope();
@@ -98,7 +101,7 @@ NAN_METHOD(PutInFileSync) {
   Local<Value> param;
   if (l >= 4) {
       param = args[3];
-      if (!param->IsUndefined() && !param->IsNull()) {
+      if (param->IsNumber()) {
           partitionFull = (TIDBProcesses) param->Uint32Value();
       }
   }
@@ -211,4 +214,100 @@ NAN_METHOD(GetInFileSync) {
   NanReturnValue(result);
 }
 
+NAN_METHOD(IsExistsInFileSync) {
+  NanScope();
+
+  int l = args.Length();
+  sds attr  = NULL;
+  sds key   = NULL;
+  Local<Value> param;
+  if (l >= 1) {
+      param = args[0];
+      if (param->IsString()) {
+          key = sdsnew(*NanUtf8String(param));
+      }
+  }
+
+  if (!key)
+  {
+      NanThrowTypeError("where my key value? u type nothing?");
+      NanReturnUndefined();
+  }
+  if (l >= 2) {
+      param = args[1];
+      if (param->IsString()) {
+          attr = sdsnew(*NanUtf8String(param));
+      }
+  }
+  bool result = iIsExistsInFile(key, attr);
+
+  sdsfree(key);sdsfree(attr);
+
+  NanReturnValue(NanNew<Boolean>(result));
+}
+
+NAN_METHOD(IncrByInFileSync) {
+  NanScope();
+
+  int l = args.Length();
+  sds attr  = NULL;
+  sds key   = NULL;
+  int64_t value = 1;
+  bool vDone = false;
+  TIDBProcesses partitionFull = dkStopped;
+  Local<Value> param;
+  if (l >= 1) {
+      param = args[0];
+      if (param->IsString()) {
+          key = sdsnew(*NanUtf8String(param));
+      }
+  }
+  if (!key)
+  {
+      NanThrowTypeError("where my key value? u type nothing?");
+      NanReturnUndefined();
+  }
+  if (l >= 2) {
+      param = args[1];
+      if (param->IsNumber()) {
+          value = param->Int32Value();
+          vDone = true;
+      }
+      else if (param->IsString()) {
+          attr = sdsnew(*NanUtf8String(param));
+      }
+  }
+  if (l >= 3) {
+      param = args[2];
+      if (param->IsString()) {
+          attr = sdsnew(*NanUtf8String(param));
+      }
+      else if (param->IsNumber()) {
+          if (vDone)
+              partitionFull = (TIDBProcesses) param->Uint32Value();
+          else
+              value = param->Int32Value();
+      }
+  }
+  if (l >= 4) {
+      param = args[3];
+      if (param->IsNumber()) {
+          partitionFull = (TIDBProcesses) param->Uint32Value();
+      }
+  }
+#ifdef DEBUG
+printf("IncrByInFileSync:key=%s,value=%lld,attr=%s,partitionFull=%d\n", key,value,attr,partitionFull);
+#endif
+  int64_t result = iIncrByInFile(key, value, attr, partitionFull);
+#ifdef DEBUG
+  printf("IncrByInFileSync:result=%lld,errno=%d\n", result, errno);
+#endif
+  sdsfree(key);sdsfree(attr);
+  if (errno) {
+      NanThrowError(idbErrorStr(errno), errno);
+      NanReturnUndefined();
+  }
+
+  NanReturnValue(NanNew<Number>(result));
+}
 

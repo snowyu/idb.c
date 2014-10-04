@@ -8,6 +8,7 @@
 
 #include <node.h>
 #include <nan.h>
+#include <errno.h>
 #include "utils.h"
 #include "idb_helpers.h"
 #include "./idb_helpers_async.h"
@@ -24,7 +25,7 @@ class PutInFileWorker : public NanAsyncWorker {
       sds value,
       sds attr,
       TIDBProcesses partitionKeyWay)
-    : NanAsyncWorker(callback), key(key), value(value), attr(attr), partitionKeyWay(partitionKeyWay), result(0) {}
+    : NanAsyncWorker(callback), key(key), attr(attr), value(value), partitionKeyWay(partitionKeyWay), result(0) {}
   ~PutInFileWorker() {}
 
   // Executed inside the worker-thread.
@@ -201,5 +202,183 @@ NAN_METHOD(GetInFileAsync) {
   NanCallback *callback = new NanCallback(args[l-1].As<Function>());
 
   NanAsyncQueueWorker(new GetInFileWorker(callback, key, attr));
+  NanReturnUndefined();
+}
+
+
+
+class IsExistsInFileWorker : public NanAsyncWorker {
+ public:
+  IsExistsInFileWorker(NanCallback *callback, sds key, sds attr)
+    : NanAsyncWorker(callback), key(key), attr(attr), value(false) {}
+  ~IsExistsInFileWorker() {}
+
+  // Executed inside the worker-thread.
+  // It is not safe to access V8, or V8 data structures
+  // here, so everything we need for input and output
+  // should go on `this`.
+  void Execute () {
+    value = iIsExistsInFile(key, attr);
+#ifdef DEBUG
+    printf("IsExistsInFileAsync:key=%s, value=%d, attr=%s\n",key, value, attr);
+#endif
+    sdsfree(key);sdsfree(attr);
+  }
+
+  // Executed when the async work is complete
+  // this function will be run inside the main event loop
+  // so it is safe to use V8 again
+  void HandleOKCallback () {
+    NanScope();
+
+    Local<Value> argv[] = {
+        NanNull()
+      , NanNew<Boolean>(value)
+    };
+
+    callback->Call(2, argv);
+  }
+
+ private:
+  sds key;
+  sds attr;
+  bool value;
+};
+
+// Asynchronous access to the function
+NAN_METHOD(IsExistsInFileAsync) {
+  NanScope();
+
+  int l = args.Length();
+  sds attr  = NULL;
+  sds key   = NULL;
+  Local<Value> param;
+  if (l >= 3) {
+      param = args[1];
+      if (param->IsString()) {
+          attr = sdsnew(*NanUtf8String(param));
+      }
+  }
+  if (l >= 2) {
+      param = args[0];
+      if (param->IsString()) {
+          key = sdsnew(*NanUtf8String(param));
+      }
+  }
+  if (!key || l <= 1) {
+      NanThrowTypeError("where my key argument value? u type nothing? or missing the callback?");
+      NanReturnUndefined();
+  }
+
+  NanCallback *callback = new NanCallback(args[l-1].As<Function>());
+
+  NanAsyncQueueWorker(new IsExistsInFileWorker(callback, key, attr));
+  NanReturnUndefined();
+}
+
+
+
+class IncrByInFileWorker : public NanAsyncWorker {
+ public:
+  IncrByInFileWorker(NanCallback *callback, sds key, int64_t value, sds attr, TIDBProcesses partitionFull)
+    : NanAsyncWorker(callback), key(key), value(value), attr(attr), partitionFull(partitionFull), errorNo(0) {}
+  ~IncrByInFileWorker() {}
+
+  // Executed inside the worker-thread.
+  // It is not safe to access V8, or V8 data structures
+  // here, so everything we need for input and output
+  // should go on `this`.
+  void Execute () {
+    result = iIncrByInFile(key, value, attr, partitionFull);
+    errorNo = errno;
+#ifdef DEBUG
+    printf("IncrByInFileAsync:result=%lld, key=%s, value=%lld, attr=%s, partitionFull=%d\n",result, key, value, attr, partitionFull);
+#endif
+    sdsfree(key);sdsfree(attr);
+  }
+
+  // Executed when the async work is complete
+  // this function will be run inside the main event loop
+  // so it is safe to use V8 again
+  void HandleOKCallback () {
+    NanScope();
+    Local<Value> error;
+    
+    if (errorNo == 0) {
+        error = NanNull();
+    }
+    else {
+        error = NanError(idbErrorStr(errorNo), errorNo);
+    }
+
+    Local<Value> argv[] = {
+        error
+      , NanNew<Number>(result)
+    };
+
+    callback->Call(2, argv);
+  }
+
+ private:
+  sds key;
+  int64_t value, result;
+  sds attr;
+  TIDBProcesses partitionFull;
+  int errorNo;
+};
+
+// Asynchronous access to the function
+NAN_METHOD(IncrByInFileAsync) {
+  NanScope();
+
+  int l = args.Length();
+  sds attr  = NULL;
+  sds key   = NULL;
+  int64_t value = 1;
+  TIDBProcesses partitionFull = dkStopped;
+  bool vDone = false;
+  Local<Value> param;
+  if (l >= 2) {
+      param = args[0];
+      if (param->IsString()) {
+          key = sdsnew(*NanUtf8String(param));
+      }
+  }
+  if (!key || l <= 1) {
+      NanThrowTypeError("where my key argument value? u type nothing? or missing the callback?");
+      NanReturnUndefined();
+  }
+  if (l >= 3) {
+      param = args[1];
+      if (param->IsNumber()) {
+          value = param->Int32Value();
+          vDone = true;
+      }
+      else if (param->IsString()) {
+          attr = sdsnew(*NanUtf8String(param));
+      }
+  }
+  if (l >= 4) {
+      param = args[2];
+      if (param->IsString()) {
+          attr = sdsnew(*NanUtf8String(param));
+      }
+      else if (param->IsNumber()) {
+          if (vDone)
+              partitionFull = (TIDBProcesses) param->Uint32Value();
+          else
+              value = param->Int32Value();
+      }
+  }
+  if (l >= 5) {
+      param = args[3];
+      if (param->IsNumber()) {
+          partitionFull = (TIDBProcesses) param->Uint32Value();
+      }
+  }
+
+  NanCallback *callback = new NanCallback(args[l-1].As<Function>());
+
+  NanAsyncQueueWorker(new IncrByInFileWorker(callback, key, value, attr, partitionFull));
   NanReturnUndefined();
 }

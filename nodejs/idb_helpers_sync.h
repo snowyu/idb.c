@@ -16,5 +16,7 @@ NAN_METHOD(ErrorStrSync);
 NAN_METHOD(SetMaxPageSizeSync);
 NAN_METHOD(PutInFileSync);
 NAN_METHOD(GetInFileSync);
+NAN_METHOD(IsExistsInFileSync);
+NAN_METHOD(IncrByInFileSync);
 
 #endif  // IDB_HELPERS_SYNC_H_
