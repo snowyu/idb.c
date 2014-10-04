@@ -628,7 +628,7 @@ static inline int is_safe_char(char c, const char *aUnSafeChars) {
 //return a new null-string if successful.
 static char *UrlEncode(char *s, const char *aUnSafeChars) {
   char *ret, *c, *ct;
-  int i, len;
+  int len;
   //printf("UrlEncode: Encoding '%s'\n", s);
   /* First pass - figure out how long the target string should be */
   len = 0;
