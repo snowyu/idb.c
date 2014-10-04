@@ -157,7 +157,7 @@ int64_t IncrByDirValue(const char *aDir, const int aDirLen, const int64_t aValue
             lseek(fd, 0L, SEEK_SET);
             vFile = sdsMakeRoomFor(vFile, vSize);
             t = read(fd, vFile, vSize);
-            assert(t == vSize, "can not read all the file.")
+            assert(t == vSize);
             sdsIncrLen(vFile, vSize);
             result = strtoll(vFile, &vEnd, 0);
             if (errno) {
