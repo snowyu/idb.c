@@ -271,6 +271,7 @@ dStringArray* FTSListDir(const char* aDir, const char* aPattern, int aOptions);
 //  * or the count of matched dirs.
 ssize_t WalkDir(const char* aDir, const char* aPattern, int aOptions, size_t aSkipCount, size_t aCount, WalkDirHandler aProcessor, void *aUserPtr);
 ssize_t CountDir(const char* aDir, const char* aPattern, int aOptions);
+//return all matched directories if aCount = 0
 dStringArray* ListDir(const char* aDir, const char* aPattern, int aOptions, size_t aSkipCount, size_t aCount);
 //whether is aPattern mached file in the aDir exists?
 bool IsFileExistsInDir(const char* aDir, const char* aPattern, int aOptions);
