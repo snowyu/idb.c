@@ -69,6 +69,8 @@ const char* idbErrorStr(int aErrno)
             return "Invalid utf8 char in the string.";
         case IDB_ERR_DUP_FILE_NAME:
             return "can not create the key dir for the same file is exists.";
+        case IDB_ERR_KEY_NOT_EXISTS:
+            return "No such key exists.";
         default:
             if (aErrno > 0)
                 return strerror(aErrno);
@@ -583,8 +585,9 @@ int64_t iIncr(const sds aDir, const char* aKey, const int aKeyLen, const char *a
 int64_t iIncrByInFile(const sds aKeyPath, int64_t aValue, const char *aAttribute, const TIDBProcesses aPartitionFullProcess)
 {
     errno = 0;
+    assert(aKeyPath);
     sds vDir = sdsdup(aKeyPath);
-    if (vDir && IDBMaxPageCount > 0) {
+    if (IDBMaxPageCount > 0) {
         //if iFindKeyDirToPut return NULL, it(iFindKeyDirToPut) will free the vDir.
         vDir = iFindKeyDirToPut(vDir, IDBMaxPageCount, aPartitionFullProcess);
         if (vDir == NULL) return errno;
@@ -723,6 +726,26 @@ bool iDelete(const sds aDir, const char* aKey, const int aKeyLen, const char *aA
     return result;
 }
 
+bool iKeyPathDelete(const sds aDir)
+{
+    // -1: file exists.
+    //  1: dir exists.
+    //  0: no path exists.
+    int result = DirectoryExists(aDir);
+    if (result != PATH_IS_DIR && IDBMaxPageCount > 0){
+        sds vDir = sdsdup(aDir);
+        vDir = iIsKeyDirExists(vDir);
+        if (vDir) {
+          result = DeleteDir(vDir) == 0;
+          sdsfree(vDir);
+        }
+    }
+    else if (result == PATH_IS_DIR)
+        result = DeleteDir(aDir) == 0;
+    else
+        result = false;
+    return result;
+}
 bool iKeyDelete(const sds aDir, const char* aKey, const int aKeyLen){
     int result = false;
     sds vDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
@@ -732,6 +755,20 @@ bool iKeyDelete(const sds aDir, const char* aKey, const int aKeyLen){
     if (vDir) {
       result = DeleteDir(vDir) == 0;
       sdsfree(vDir);
+    }
+    return result;
+}
+
+int iKeyPathIsExists(const sds aDir)
+{
+    int result = DirectoryExists(aDir);
+    if (result !=PATH_IS_DIR && IDBMaxPageCount > 0) {
+        sds vDir = sdsdup(aDir);
+        vDir = iIsKeyDirExists(vDir);
+        if (vDir) {
+            result = DirectoryExists(vDir);
+            sdsfree(vDir);
+        }
     }
     return result;
 }
@@ -806,15 +843,54 @@ sds GetRelativePath(const char* aFrom, const int aFromLen, const char* aTo, cons
     return result;
 }
 
-int iKeyAlias(const sds aDir, const char* aKey, const int aKeyLen, const char* aAliasPath, const int aAliasPathLen)
+int iKeyAlias(const sds aDir, const char* aKey, const int aKeyLen, const char* aAliasPath, const int aAliasPathLen, TIDBProcesses aPartitionFullProcess)
 {
+    assert(aDir && aKey && aAliasPath);
+    int result = iKeyIsExists(aDir, aKey, aKeyLen);
+    if (result != 1) {
+        return IDB_ERR_KEY_NOT_EXISTS;
+    }
     //sds vSrcDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
     sds vDestDir = sdsJoinPathLen(sdsdup(aDir), aAliasPath, aAliasPathLen);
-    sds vSrcDir = GetRelativePath(aAliasPath, aAliasPathLen, aKey, aKeyLen);
-    //make symbolic link(destPath) to a srcPath
-    int result = symlink(vSrcDir, vDestDir);
-    if (result != 0) result = errno;
-    sdsfree(vSrcDir);
+    //prepare the alias(dest) parent dir:
+    errno = 0;
+    sds vDir = sdsdup(vDestDir);
+    if (IDBMaxPageCount > 0) {
+        //if iFindKeyDirToPut return NULL, it(iFindKeyDirToPut) will free the vDir.
+        vDir = iFindKeyDirToPut(vDir, IDBMaxPageCount, aPartitionFullProcess);
+        if (vDir == NULL) {
+            sdsfree(vDestDir);
+            return errno;
+        }
+        sdsfree(vDestDir);
+        vDestDir = sdsdup(vDir);
+    }
+    RemoveLastPathName(vDir);
+    result = DirectoryExists(vDir);
+    if (result == PATH_IS_NOT_EXISTS) { //Dir not Exists
+        ForceDirectories(vDir, O_RWXRWXR_XPERMS);
+    }
+    else if (result == PATH_IS_FILE) {//File Already Exists Error:
+        errno = IDB_ERR_DUP_FILE_NAME;
+    }
+    if (errno == 0) {
+        //sds vSrcDir = GetRelativePath(aAliasPath, aAliasPathLen, aKey, aKeyLen);
+        char *v= vDestDir;
+        v += sdslen(aDir)+1;
+        //printf("vDestDir=%s, vD=%s, %d\n", vDestDir, v, sdslen(vDestDir)-sdslen(aDir)-1);
+        //assert(sdslen(vDestDir)-sdslen(aDir)-1 > 0);
+        sds vSrcDir = GetRelativePath(v, sdslen(vDestDir)-sdslen(aDir)-1, aKey, aKeyLen);
+        //printf("vSrcDir=%s\n", vSrcDir);
+        //make symbolic link(destPath) to a srcPath
+        result = symlink(vSrcDir, vDestDir);
+        //printf("symlink(src=%s, dest=%s)=%d\n", vSrcDir, vDestDir, result);
+        sdsfree(vSrcDir);
+        if (result != 0) result = errno;
+    }
+    else
+        result = errno;
+    sdsfree(vDir);
+
     sdsfree(vDestDir);
     return result;
 }
@@ -1036,12 +1112,35 @@ dStringArray* iSubkeys(const sds aDir, const char* aKey, const int aKeyLen, cons
 
 size_t iAttrCountInFile(const sds aKeyPath, const char* aPattern)
 {
-  return _iAttrCount(aKeyPath, aPattern);
+    assert(aKeyPath);
+    size_t result = 0;
+    if (DirectoryExists(aKeyPath) == PATH_IS_DIR) {
+        result = _iAttrCount(aKeyPath, aPattern);
+    }
+    else if (IDBMaxPageCount > 0) {
+        sds vDir = iIsKeyDirExists(sdsdup(aKeyPath));
+        if (vDir != NULL) {
+            result = _iAttrCount(vDir, aPattern);
+            sdsfree(vDir);
+        }
+    }
+    return result;
 }
 
 dStringArray *iAttrsInFile(const sds aKeyPath, const char* aPattern, size_t aSkipCount, size_t aCount)
 {
-  return ListDir(aKeyPath, aPattern, LIST_ALL_FILES, aSkipCount, aCount);
+    dStringArray *result = NULL;
+    if (DirectoryExists(aKeyPath) == PATH_IS_DIR) {
+        result = ListDir(aKeyPath, aPattern, LIST_ALL_FILES, aSkipCount, aCount);
+    }
+    else if (IDBMaxPageCount > 0) {
+        sds vDir = iIsKeyDirExists(sdsdup(aKeyPath));
+        if (vDir != NULL) {
+            result = ListDir(vDir, aPattern, LIST_ALL_FILES, aSkipCount, aCount);
+            sdsfree(vDir);
+        }
+    }
+    return result;
 }
 
 #ifdef IDB_HELPER_TEST_MAIN
@@ -1205,13 +1304,13 @@ int main(int argc, char **argv)
         printf("---------------------------------------");
         printf("Alias testing.....");
         printf("---------------------------------------");
-        iKeyAlias(x, "myhi/see/u", 10, "myhi/see/u1", 11);
+        iKeyAlias(x, "myhi/see/u", 10, "myhi/see/u1", 11, dkStopped);
         test_cond("iKeyAlias('myhi/see/u', 'myhi/see/u1')", IsDirectory("testdir/myhi/see/u1") == PATH_IS_SYM_DIR);
 
-        iKeyAlias(x, "myhi/see/u", 10, "myhi/fa/u", 11);
+        iKeyAlias(x, "myhi/see/u", 10, "myhi/fa/u", 11, dkStopped);
         test_cond("iKeyAlias('myhi/see/u', 'myhi/fa/u')", IsDirectory("testdir/myhi/fa/u") == PATH_IS_SYM_DIR);
         test_putKey(x, "god4u", "turn on value", NULL, STORE_IN_FILE, IDB_OK);
-        iKeyAlias(x, "god4u", 5, "myhi/see/u2", 11);
+        iKeyAlias(x, "god4u", 5, "myhi/see/u2", 11, dkStopped);
         test_getKey(x, "myhi/see/u2", "turn on value", NULL, STORE_IN_FILE);
         printf("---------------------------------------");
 
