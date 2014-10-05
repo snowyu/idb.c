@@ -1,6 +1,7 @@
 idb  = require('../index')
 fs   = require('graceful-fs')
 path = require('path')
+_    = require('lodash')
 chance = new require('chance')()
 
 IDB_VALUE_NAME = idb.IDB_VALUE_NAME
@@ -11,6 +12,91 @@ utils =
         if not aCharset?
             aCharset = charset
         chance.string({pool: aCharset, length: aLen})
+
+    testGetAttrCountInFileSync : (key, pattern, expectedResult)->
+        if not expectedResult?
+            expectedResult = pattern
+            pattern = undefined
+        expect(idb.getAttrCountInFileSync(key, pattern)).toBe expectedResult
+
+    testGetAttrsInFileSync : (key, pattern, skipCount, count, expectedResult)->
+        if not expectedResult?
+            if _.isArray count
+                expectedResult = count
+                count = undefined
+            else if _.isArray skipCount
+                expectedResult = skipCount
+                skipCount = undefined
+            else if _.isArray pattern
+                expectedResult = pattern
+                pattern = undefined
+            expectedResult = _.sortBy expectedResult if _.isArray expectedResult
+            result = idb.getAttrsInFileSync(key, pattern, skipCount, count)
+            result = _.sortBy result if _.isArray result
+        expect(result).toEqual expectedResult
+
+    testCreateKeyAliasSync : (dir, key, alias, partitionKeyWay, expectedResult)->
+        if not expectedResult?
+            expectedResult = partitionKeyWay
+            partitionKeyWay = undefined
+        if not expectedResult?
+            expectedResult = idb.IDB_OK
+        expect(idb.createKeyAliasSync(dir, key, alias, partitionKeyWay)).toBe expectedResult
+        if expectedResult == idb.IDB_OK
+            vkey = path.join(dir,key)
+            value = idb.getInFileSync(vkey)
+            utils.testGetInFileSync(path.join(dir, alias), value)
+
+    testDeleteInFileSync : (key, attr, expectedResult)->
+        erred = false
+        err = null
+        if not expectedResult?
+            expectedResult = attr
+            attr = null
+        if _.isObject expectedResult
+            erred = true
+        try
+            result = idb.deleteInFileSync(key, attr)
+        catch e
+            err = e
+            result = false
+        if erred
+            expect(err).toEqual expectedResult
+        else
+            if expectedResult
+                expect(err).toBe null
+            expect(result).toBe expectedResult
+        ###
+        if err
+            console.log("err=", err)
+            expect(err).toEqual {code:2} #no such file or dir.
+        ###
+            
+
+        if expectedResult
+            p = key
+            if attr
+                p = path.join(p, attr)
+            expect(fs.existsSync(p)).toBe false
+
+    testDeleteInFileAsync : (key, attr, expectedResult)->
+        erred = false
+        if not expectedResult?
+            expectedResult = attr
+            attr = null
+        if _.isObject expectedResult
+            erred = true
+        idb.deleteInFile key, attr, (err, result)->
+            if erred
+                expect(err).toEqual(expectedResult)
+            else
+                if expectedResult
+                    expect(err).toBe null
+                    expect(result).toBe true
+                else
+                    expect(err).not.toBe null
+            asyncSpecDone()
+        asyncSpecWait()
 
     testIncrByInFileSync : (key, value, attr, partitionKeyWay, expectedResult)->
         erred = false
@@ -24,7 +110,7 @@ utils =
                 incr = 1
             expectedResult = n + incr
             #console.log("incr=",incr," n=",n)
-        else if typeof expectedResult == "object"
+        else if _.isObject expectedResult
             erred = true
         if not erred
             expect(idb.incrByInFileSync(key, value, attr, partitionKeyWay)).toBe expectedResult
@@ -45,7 +131,7 @@ utils =
                 incr = 1
             expectedResult = n + incr
             #console.log("incr.async=",incr," n=",n)
-        else if typeof expectedResult == "object"
+        else if _.isObject expectedResult
             erred = true
         idb.incrByInFile key, value, attr, partitionKeyWay, (err, result)->
             if erred

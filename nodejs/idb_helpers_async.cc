@@ -218,7 +218,11 @@ class IsExistsInFileWorker : public NanAsyncWorker {
   // here, so everything we need for input and output
   // should go on `this`.
   void Execute () {
-    value = iIsExistsInFile(key, attr);
+    if (attr)
+      value = iIsExistsInFile(key, attr);
+    else {
+      value = iKeyPathIsExists(key) == 1;
+    }
 #ifdef DEBUG
     printf("IsExistsInFileAsync:key=%s, value=%d, attr=%s\n",key, value, attr);
 #endif
@@ -382,3 +386,87 @@ NAN_METHOD(IncrByInFileAsync) {
   NanAsyncQueueWorker(new IncrByInFileWorker(callback, key, value, attr, partitionFull));
   NanReturnUndefined();
 }
+
+
+class DeleteInFileWorker : public NanAsyncWorker {
+ public:
+  DeleteInFileWorker(NanCallback *callback, sds key, sds attr)
+    : NanAsyncWorker(callback), key(key), attr(attr), result(false),errorNo(0) {}
+  ~DeleteInFileWorker() {}
+
+  // Executed inside the worker-thread.
+  // It is not safe to access V8, or V8 data structures
+  // here, so everything we need for input and output
+  // should go on `this`.
+  void Execute () {
+    if (attr)
+      result = iDeleteInFile(key, attr);
+    else {
+      result = iKeyPathDelete(key);
+    }
+    errorNo = errno;
+#ifdef DEBUG
+    printf("DeleteInFileAsync:key=%s, attr=%s, result=&d, errno=%d\n",key, attr, result, errno);
+#endif
+    sdsfree(key);sdsfree(attr);
+  }
+
+  // Executed when the async work is complete
+  // this function will be run inside the main event loop
+  // so it is safe to use V8 again
+  void HandleOKCallback () {
+    NanScope();
+    Local<Value> error;
+    if (!result && errorNo) {
+        error = NanError(idbErrorStr(errorNo), errorNo);
+    }
+    else
+        error = NanNull();
+
+    Local<Value> argv[] = {
+        error 
+      , NanNew<Boolean>(result)
+    };
+
+    callback->Call(2, argv);
+  }
+
+ private:
+  sds key;
+  sds attr;
+  bool result;
+  int errorNo;
+};
+
+// Asynchronous access to the function
+NAN_METHOD(DeleteInFileAsync) {
+  NanScope();
+
+  int l = args.Length();
+  sds attr  = NULL;
+  sds key   = NULL;
+  Local<Value> param;
+  if (l >= 3) {
+      param = args[1];
+      if (param->IsString()) {
+          attr = sdsnew(*NanUtf8String(param));
+      }
+  }
+  if (l >= 2) {
+      param = args[0];
+      if (param->IsString()) {
+          key = sdsnew(*NanUtf8String(param));
+      }
+  }
+  if (!key || l <= 1) {
+      NanThrowTypeError("where my key argument value? u type nothing? or missing the callback?");
+      NanReturnUndefined();
+  }
+
+  NanCallback *callback = new NanCallback(args[l-1].As<Function>());
+
+  NanAsyncQueueWorker(new DeleteInFileWorker(callback, key, attr));
+  NanReturnUndefined();
+}
+
+

@@ -50,6 +50,7 @@ static inline const char* ToCString(const v8::String::Utf8Value& value) {
 }
 */
 
+//string errorStr(errorNo)
 NAN_METHOD(ErrorStrSync) {
   NanScope();
   if (args.Length() >= 1) {
@@ -69,6 +70,8 @@ NAN_METHOD(ErrorStrSync) {
   }
   NanReturnUndefined();
 }
+
+//bool setMaxPageSize(aMaxPageSize)
 NAN_METHOD(SetMaxPageSizeSync) {
   NanScope();
   bool result = false;
@@ -214,6 +217,8 @@ NAN_METHOD(GetInFileSync) {
   NanReturnValue(result);
 }
 
+//IsExists(key[, attr])
+//check key is exists if attr is null or undefined.
 NAN_METHOD(IsExistsInFileSync) {
   NanScope();
 
@@ -239,13 +244,19 @@ NAN_METHOD(IsExistsInFileSync) {
           attr = sdsnew(*NanUtf8String(param));
       }
   }
-  bool result = iIsExistsInFile(key, attr);
+  bool result;
+  if (attr)
+      result = iIsExistsInFile(key, attr);
+  else {
+      result = iKeyPathIsExists(key) == 1;
+  }
 
   sdsfree(key);sdsfree(attr);
 
   NanReturnValue(NanNew<Boolean>(result));
 }
 
+//incrBy(key[, incr[, attr[, partitionFull]]])
 NAN_METHOD(IncrByInFileSync) {
   NanScope();
 
@@ -310,4 +321,203 @@ printf("IncrByInFileSync:key=%s,value=%lld,attr=%s,partitionFull=%d\n", key,valu
 
   NanReturnValue(NanNew<Number>(result));
 }
+//delete(key[, attr])
+//delete the whole key if attr is null/undefined
+NAN_METHOD(DeleteInFileSync) {
+  NanScope();
 
+  int l = args.Length();
+  sds attr  = NULL;
+  sds key   = NULL;
+  int64_t value = 1;
+  Local<Value> param;
+  if (l >= 1) {
+      param = args[0];
+      if (param->IsString()) {
+          key = sdsnew(*NanUtf8String(param));
+      }
+  }
+  if (!key)
+  {
+      NanThrowTypeError("miss the key param.");
+      NanReturnUndefined();
+  }
+  if (l >= 2) {
+      param = args[1];
+      if (param->IsString()) {
+          attr = sdsnew(*NanUtf8String(param));
+      }
+  }
+#ifdef DEBUG
+printf("DeleteInFileSync:key=%s,attr=%s\n", key,attr);
+#endif
+  bool result;
+  if (attr)
+      result = iDeleteInFile(key, attr);
+  else
+      result = iKeyPathDelete(key);
+#ifdef DEBUG
+  printf("DeleteInFileSync:result=%lld,errno=%d\n", result, errno);
+#endif
+  sdsfree(key);sdsfree(attr);
+  if (!result && errno) {
+      NanThrowError(idbErrorStr(errno), errno);
+  }
+
+  NanReturnValue(NanNew<Boolean>(result));
+}
+
+
+//int CreateKeyAliasSync(aDir, aKey, aKeyAlias[, aPartitionFull])
+//if successful return 0(IDB_OK), others are error no.
+//NOTE: if the aKey is deleted. then the alias is invalid.(should be deleted too?)
+NAN_METHOD(CreateKeyAliasSync) {
+  NanScope();
+
+  int l = args.Length();
+  TIDBProcesses partitionFull = dkStopped;
+  sds dir   = NULL;
+  sds alias = NULL;
+  sds key   = NULL;
+
+  Local<Value> param;
+  if (l >= 4) {
+      param = args[3];
+      if (param->IsNumber()) {
+          partitionFull = (TIDBProcesses) param->Uint32Value();
+      }
+  }
+  if (l >= 3) {
+      param = args[2];
+      if (!param->IsUndefined() && !param->IsNull()) {
+          alias = sdsnew(*NanUtf8String(param));
+      }
+      param = args[1];
+      if (!param->IsUndefined() && !param->IsNull()) {
+          key = sdsnew(*NanUtf8String(param));
+      }
+      param = args[0];
+      if (!param->IsUndefined() && !param->IsNull()) {
+          dir = sdsnew(*NanUtf8String(param));
+      }
+      if (!dir || !key || !alias) {
+          NanThrowTypeError("the aDir, aKey, aKeyAlias params can not be empty");
+          NanReturnUndefined();
+      }
+  }
+  else {
+      NanThrowTypeError("the params is not enough:(aDir, aKey, aKeyAlias[, aPartitionFull])");
+      NanReturnUndefined();
+  }
+#ifdef DEBUG
+  printf("CreateKeyAliasSync:dir=%s, key=%s, alias=%s,partitionFull=%d\n",dir, key, alias, partitionFull);
+#endif
+  int result = iKeyAlias(dir, key, sdslen(key), alias, sdslen(alias), partitionFull);
+#ifdef DEBUG
+  printf("result=%d\n", result);
+#endif
+  sdsfree(dir);
+  sdsfree(key);
+  sdsfree(alias);
+  NanReturnValue(NanNew<Number>(result));
+}
+
+//int GetAttrCountInFileSync(key[, pattern])
+NAN_METHOD(GetAttrCountInFileSync) {
+  NanScope();
+
+  int l = args.Length();
+  sds key     = NULL;
+  sds pattern = NULL;
+
+  Local<Value> param;
+  if (l >= 1) {
+      param = args[0];
+      if (param->IsString()) {
+          key = sdsnew(*NanUtf8String(param));
+      }
+  }
+  if (!key)
+  {
+      NanThrowTypeError("miss the key param.");
+      NanReturnUndefined();
+  }
+  if (l >= 2) {
+      param = args[1];
+      if (param->IsString()) {
+          pattern = sdsnew(*NanUtf8String(param));
+      }
+  }
+#ifdef DEBUG
+  printf("AttrCountInFileSync:key=%s, pattern=%s\n",key, pattern);
+#endif
+  size_t result = iAttrCountInFile(key, pattern);
+#ifdef DEBUG
+  printf("result=%d\n", result);
+#endif
+  sdsfree(key);
+  sdsfree(pattern);
+  NanReturnValue(NanNew<Number>(result));
+}
+
+//int GetAttrsInFileSync(key[, pattern[, aSkipCount, aCount]])
+NAN_METHOD(GetAttrsInFileSync) {
+  NanScope();
+
+  int l = args.Length();
+  sds key     = NULL;
+  sds pattern = NULL;
+  size_t skipCount = 0;
+  size_t count = 0;
+
+  Local<Value> param;
+  if (l >= 1) {
+      param = args[0];
+      if (param->IsString()) {
+          key = sdsnew(*NanUtf8String(param));
+      }
+  }
+  if (!key)
+  {
+      NanThrowTypeError("miss the key param.");
+      NanReturnUndefined();
+  }
+  if (l >= 2) {
+      param = args[1];
+      if (param->IsString()) {
+          pattern = sdsnew(*NanUtf8String(param));
+      }
+  }
+  if (l >= 3) {
+      param = args[2];
+      if (param->IsNumber()) {
+          skipCount = param->Uint32Value();
+      }
+  }
+  if (l >= 4) {
+      param = args[3];
+      if (param->IsNumber()) {
+          count = param->Uint32Value();
+      }
+  }
+#ifdef DEBUG
+  printf("AttrsInFileSync:key=%s, pattern=%s\n",key, pattern);
+#endif
+  dStringArray *result = iAttrsInFile(key, pattern, skipCount, count);
+#ifdef DEBUG
+  printf("result=%x\n", result);
+#endif
+  sdsfree(key);
+  sdsfree(pattern);
+  if (result) {
+      l = darray_size(*result);
+      Local<Array> array = Array::New(l);
+      for (int i=0; i < l; i++) {
+          array->Set(i, String::New(darray_item(*result, i)));
+      }
+      dStringArray_free(result);
+      NanReturnValue(array);
+  }
+  else
+      NanReturnUndefined();
+}

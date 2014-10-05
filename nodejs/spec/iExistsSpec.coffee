@@ -7,25 +7,24 @@ describe 'IsExists a key/value from a directory', ->
     utils = require('./utils')
 
     dataDir = path.join(__dirname, 'tmp')
-    charset = '中文你好abcdefghijklmnopqrstuvwxyz关键爱英明真光明浮现美丽宝贝'
-    gKey    = path.join(dataDir, 'u'+chance.string({pool: charset, length: 5}))
-    gKey2   = path.join(dataDir, 'u'+chance.string({pool: charset, length: 5}))
+    gKey    = path.join(dataDir, 'u'+utils.getRandomStr(5))
+    gKey2   = path.join(dataDir, 'u'+utils.getRandomStr(5))
     fse.remove(dataDir)
 
 
     it 'should not be exists a key from the folder synchronous', ->
-        value = utils.getRandomStr(16)
         utils.testIsExistsInFileSync(gKey, false)
 
     it 'should not be exists a key\'s attr from the folder synchronous', ->
         attr  = utils.getRandomStr(5)
-        value = utils.getRandomStr(16)
         utils.testIsExistsInFileSync(gKey, attr, false)
 
     it 'should be exists a key from the folder synchronous', ->
         value = utils.getRandomStr(16)
         utils.testPutInFileSync(gKey, value)
         utils.testIsExistsInFileSync(gKey, true)
+        attr  = utils.getRandomStr(5)
+        utils.testIsExistsInFileSync(gKey, attr, false)
 
     it 'should be exists a key\'s attr from the folder synchronous', ->
         attr  = utils.getRandomStr(5)

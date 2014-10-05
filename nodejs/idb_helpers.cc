@@ -39,6 +39,8 @@ void InitAll(Handle<Object> exports) {
     NanNew<Number>(IDB_ERR_INVALID_UTF8));
   exports->Set(NanNew<String>("IDB_ERR_DUP_FILE_NAME"),
     NanNew<Number>(IDB_ERR_DUP_FILE_NAME));
+  exports->Set(NanNew<String>("IDB_ERR_KEY_NOT_EXISTS"),
+    NanNew<Number>(IDB_ERR_KEY_NOT_EXISTS));
 
   exports->Set(NanNew<String>("errorStr"),
     NanNew<FunctionTemplate>(ErrorStrSync)->GetFunction());
@@ -64,6 +66,20 @@ void InitAll(Handle<Object> exports) {
     NanNew<FunctionTemplate>(IncrByInFileSync)->GetFunction());
   exports->Set(NanNew<String>("incrByInFile"),
     NanNew<FunctionTemplate>(IncrByInFileAsync)->GetFunction());
+
+  exports->Set(NanNew<String>("deleteInFileSync"),
+    NanNew<FunctionTemplate>(DeleteInFileSync)->GetFunction());
+  exports->Set(NanNew<String>("deleteInFile"),
+    NanNew<FunctionTemplate>(DeleteInFileAsync)->GetFunction());
+
+  exports->Set(NanNew<String>("createKeyAliasSync"),
+    NanNew<FunctionTemplate>(CreateKeyAliasSync)->GetFunction());
+
+  exports->Set(NanNew<String>("getAttrCountInFileSync"),
+    NanNew<FunctionTemplate>(GetAttrCountInFileSync)->GetFunction());
+
+  exports->Set(NanNew<String>("getAttrsInFileSync"),
+    NanNew<FunctionTemplate>(GetAttrsInFileSync)->GetFunction());
 }
 
 NODE_MODULE(idb, InitAll)

@@ -16,5 +16,6 @@ NAN_METHOD(PutInFileAsync);
 NAN_METHOD(GetInFileAsync);
 NAN_METHOD(IsExistsInFileAsync);
 NAN_METHOD(IncrByInFileAsync);
+NAN_METHOD(DeleteInFileAsync);
 
 #endif  // IDB_HELPERS_ASYNC_H_
