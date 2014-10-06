@@ -7,6 +7,40 @@
   * !+ Cache the key/value in the memory
 * !+ Mongrel2 Restful API
 
+
+# 2014-10-06
+
++ Build nodejs binding:
+    cd nodejs
+    npm install
+    node-gyp rebuild [-d] #-d for building debug
+    npm test
+
+* these functions and constants would be binding to nodejs:
+  * Put/Get a Key/attribute Sync/Async
+  * IsExists a Key/attribute Sync/Async
+  * Delete a Key/attribute Sync/Async
+  * incrBy Sync/Async
+  * createKeyAlas Sync
+  * getAttrCountInFile Sync
+  * getAttrsInFile Sync
+  * getSubkeyCount Sync
+  * getSubkeys Sync
+  * string errorStr(errno)
+  * bool setMaxPageSize(aMaxPageSize)
+  * And some iDB constants:
+    * IDB_KEY_TYPE_NAME
+    * IDB_VALUE_NAME
+    * dkStopped
+    * dkIgnored
+    * IDB_OK
+    * IDB_ERR_PART_FULL
+    * IDB_ERR_PART_DUP_KEY
+    * IDB_ERR_INVALID_UTF8
+    * IDB_ERR_DUP_FILE_NAME
+    * IDB_ERR_KEY_NOT_EXISTS
+
+
 # 2013-07-22
 
 ## IndexFileDB Disk Storage Internal Mechanism
