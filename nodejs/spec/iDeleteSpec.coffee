@@ -5,10 +5,9 @@ chance = new require('chance')()
 idb = require('../index')
 utils = require('./utils')
 
-dataDir = path.join(__dirname, 'tmp')
-gKey    = path.join(dataDir, 'u'+utils.getRandomStr(5))
-gKey2   = path.join(dataDir, 'u'+utils.getRandomStr(5))
-fse.remove(dataDir)
+gKey    = utils.getRandomKey()
+gKey2   = utils.getRandomKey()
+utils.clearDataDir()
 
 describe 'Delete a key/value from a directory', ->
 
@@ -25,19 +24,19 @@ describe 'Delete a key/value from a directory', ->
         utils.testDeleteInFileSync(gKey, true)
 
     it 'delete an non-exists key from the folder asynchronous', ->
-        key  = utils.getRandomStr(5)
+        key  = utils.getRandomKey()
         utils.testDeleteInFileAsync(key, false)
     it 'delete an non-exists key\'s attr from the folder asynchronous', ->
-        key  = utils.getRandomStr(5)
+        key  = utils.getRandomKey()
         attr  = utils.getRandomStr(5)
         utils.testDeleteInFileAsync(key, attr, false)
     it 'should delete an exists key from the folder asynchronous', ->
-        key  = utils.getRandomStr(5)
+        key  = utils.getRandomKey()
         value = utils.getRandomStr(16)
         utils.testPutInFileSync(key, value)
         utils.testDeleteInFileAsync(key, true)
     it 'should delete an exists key\'s attr from the folder asynchronous', ->
-        key  = utils.getRandomStr(5)
+        key  = utils.getRandomKey()
         value = utils.getRandomStr(16)
         attr  = utils.getRandomStr(5)
         utils.testPutInFileSync(key, value, attr)

@@ -5,15 +5,14 @@ chance = new require('chance')()
 idb = require('../index')
 utils = require('./utils')
 
-dataDir = path.join(__dirname, 'tmp')
-gKey    = path.join(dataDir, 'u'+utils.getRandomStr(5))
-gKey2   = path.join(dataDir, 'u'+utils.getRandomStr(5))
-fse.remove(dataDir)
+gKey    = utils.getRandomKey()
+gKey2   = utils.getRandomKey()
 
 describe 'Get Key\'s Attrs from a directory', ->
 
+    utils.clearDataDir()
     it 'try to get attrs from a non-exists key synchronous', ->
-        key    = utils.getRandomStr(5)
+        key    = utils.getRandomKey(6)
         utils.testGetAttrCountInFileSync(key, 0)
         utils.testGetAttrsInFileSync(key)
 

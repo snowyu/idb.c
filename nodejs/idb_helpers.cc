@@ -80,6 +80,13 @@ void InitAll(Handle<Object> exports) {
 
   exports->Set(NanNew<String>("getAttrsInFileSync"),
     NanNew<FunctionTemplate>(GetAttrsInFileSync)->GetFunction());
+
+  exports->Set(NanNew<String>("getSubkeyCountSync"),
+    NanNew<FunctionTemplate>(GetSubkeyCountSync)->GetFunction());
+
+  exports->Set(NanNew<String>("getSubkeysSync"),
+    NanNew<FunctionTemplate>(GetSubkeysSync)->GetFunction());
+
 }
 
 NODE_MODULE(idb, InitAll)

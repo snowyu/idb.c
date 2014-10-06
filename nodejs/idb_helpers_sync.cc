@@ -521,3 +521,113 @@ NAN_METHOD(GetAttrsInFileSync) {
   else
       NanReturnUndefined();
 }
+
+//int GetSubkeyCountSync(key[, pattern])
+NAN_METHOD(GetSubkeyCountSync) {
+  NanScope();
+
+  int l = args.Length();
+  sds key     = NULL;
+  sds pattern = NULL;
+
+  Local<Value> param;
+  if (l >= 1) {
+      param = args[0];
+      if (param->IsString()) {
+          key = sdsnew(*NanUtf8String(param));
+      }
+  }
+  if (!key)
+  {
+      NanThrowTypeError("miss the key param.");
+      NanReturnUndefined();
+  }
+  if (l >= 2) {
+      param = args[1];
+      if (param->IsString()) {
+          pattern = sdsnew(*NanUtf8String(param));
+      }
+  }
+#ifdef DEBUG
+  printf("GetSubkeyCountSync:key=%s, pattern=%s\n",key, pattern);
+#endif
+  ssize_t result = iSubkeyCount(key, pattern);
+#ifdef DEBUG
+  printf("result=%d\n", result);
+#endif
+  sdsfree(key);
+  sdsfree(pattern);
+  NanReturnValue(NanNew<Number>(result));
+}
+
+//int GetSubkeysSync(key[, pattern[, aSkipCount, aCount, aDuplicationKeyProcess]])
+NAN_METHOD(GetSubkeysSync) {
+  NanScope();
+
+  int l = args.Length();
+  sds dir     = NULL;
+  sds key     = NULL;
+  sds pattern = NULL;
+  size_t skipCount = 0;
+  size_t count = 0;
+  TIDBProcesses duplicationKeyProcess = dkIgnored;
+
+  Local<Value> param;
+  if (l >= 1) {
+      param = args[0];
+      if (param->IsString()) {
+          dir = sdsnew(*NanUtf8String(param));
+          key = ExtractLastPathName(dir);
+      }
+  }
+  if (!key)
+  {
+      NanThrowTypeError("miss the key param.");
+      NanReturnUndefined();
+  }
+  if (l >= 2) {
+      param = args[1];
+      if (param->IsString()) {
+          pattern = sdsnew(*NanUtf8String(param));
+      }
+  }
+  if (l >= 3) {
+      param = args[2];
+      if (param->IsNumber()) {
+          skipCount = param->Uint32Value();
+      }
+  }
+  if (l >= 4) {
+      param = args[3];
+      if (param->IsNumber()) {
+          count = param->Uint32Value();
+      }
+  }
+  if (l >= 5) {
+      param = args[4];
+      if (param->IsNumber()) {
+          duplicationKeyProcess = (TIDBProcesses) param->Uint32Value();
+      }
+  }
+#ifdef DEBUG
+  printf("GetSubkeysSync:dir=%s, key=%s, pattern=%s, skipCount=%d, count=%d, dupProcess=%d\n",dir, key, pattern, skipCount, count, duplicationKeyProcess);
+#endif
+  dStringArray *result = iSubkeys(dir, key, sdslen(key), pattern, skipCount, count, duplicationKeyProcess);
+#ifdef DEBUG
+  printf("result=%x\n", result);
+#endif
+  sdsfree(dir);
+  sdsfree(key);
+  sdsfree(pattern);
+  if (result) {
+      l = darray_size(*result);
+      Local<Array> array = Array::New(l);
+      for (int i=0; i < l; i++) {
+          array->Set(i, String::New(darray_item(*result, i)));
+      }
+      dStringArray_free(result);
+      NanReturnValue(array);
+  }
+  else
+      NanReturnUndefined();
+}

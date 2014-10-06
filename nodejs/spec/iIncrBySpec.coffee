@@ -5,14 +5,13 @@ chance = new require('chance')()
 idb = require('../index')
 utils = require('./utils')
 
-dataDir = path.join(__dirname, 'tmp')
-charset = '中文你好abcdefghijklmnopqrstuvwxyz关键爱英明真光明浮现美丽宝贝'
-gKey    = path.join(dataDir, 'u'+utils.getRandomStr(5))
-gKey2   = path.join(dataDir, 'u'+utils.getRandomStr(5))
-fse.remove(dataDir)
+gKey    = utils.getRandomKey()
+gKey2   = utils.getRandomKey()
+
 
 describe 'IncrBy a key/value from a directory', ->
 
+    utils.clearDataDir()
     it 'should increment 1 for a new key with default param synchronous', ->
         utils.testIncrByInFileSync(gKey)
         utils.testGetInFileSync(gKey, "1")

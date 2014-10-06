@@ -5,12 +5,11 @@ chance = new require('chance')()
 idb    = require('../index')
 utils  = require('./utils')
 
-dataDir = path.join(__dirname, 'tmp')
-gKey    = path.join(dataDir, utils.getRandomStr(5))
+gKey    = utils.getRandomKey()
 
 describe 'adjust iDB MaxPageSize options', ->
 
-    fse.remove(dataDir)
+    utils.clearDataDir()
 
     it 'should be two dirs when set the MaxPageSize is 2', ->
         expect(idb.setMaxPageSize(2)).toBe true

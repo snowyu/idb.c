@@ -6,10 +6,9 @@ describe 'IsExists a key/value from a directory', ->
     idb = require('../index')
     utils = require('./utils')
 
-    dataDir = path.join(__dirname, 'tmp')
-    gKey    = path.join(dataDir, 'u'+utils.getRandomStr(5))
-    gKey2   = path.join(dataDir, 'u'+utils.getRandomStr(5))
-    fse.remove(dataDir)
+    gKey    = utils.getRandomKey()
+    gKey2   = utils.getRandomKey()
+    utils.clearDataDir()
 
 
     it 'should not be exists a key from the folder synchronous', ->
@@ -33,7 +32,7 @@ describe 'IsExists a key/value from a directory', ->
         utils.testIsExistsInFileSync(gKey, attr, true)
 
     it 'should not be exists a key from the folder asynchronous', ->
-        key = utils.getRandomStr(16)
+        key = utils.getRandomKey(16)
         utils.testIsExistsInFileAsync(key, false)
 
     it 'should not be exists a key\'s attr from the folder asynchronous', ->

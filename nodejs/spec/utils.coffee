@@ -1,5 +1,6 @@
 idb  = require('../index')
 fs   = require('graceful-fs')
+fse  = require('fs-extra')
 path = require('path')
 _    = require('lodash')
 chance = new require('chance')()
@@ -8,10 +9,59 @@ IDB_VALUE_NAME = idb.IDB_VALUE_NAME
 charset = '中文你好abcdefghijklmnopqrstuvwxyz关键爱英明真光明浮现美丽宝贝'
 
 utils =
+    dataDir: path.join(__dirname, 'tmp')
+    clearDataDir: ->
+        fse.remove(utils.dataDir)
+    getRandomKey: (aLen, aCharset)->
+        if not aCharset?
+            aCharset = charset
+        aLen = 5 unless _.isNumber aLen
+        path.join utils.dataDir, "key"+chance.string({pool: aCharset, length: aLen})
     getRandomStr: (aLen, aCharset)->
         if not aCharset?
             aCharset = charset
         chance.string({pool: aCharset, length: aLen})
+
+    testGetSubkeyCountSync: (key, pattern, expectedResult)->
+        if not expectedResult?
+            expectedResult = pattern
+            pattern = undefined
+        expect(idb.getSubkeyCountSync(key, pattern)).toBe expectedResult
+
+    testGetSubkeysSync : (key, pattern, skipCount, count, duplicationKeyProcess, expectedResult)->
+        if not expectedResult?
+            if _.isArray duplicationKeyProcess
+                expectedResult = duplicationKeyProcess
+                duplicationKeyProcess = undefined
+            else if _.isArray count
+                expectedResult = count
+                count = undefined
+            else if _.isArray skipCount
+                expectedResult = skipCount
+                skipCount = undefined
+            else if _.isArray pattern
+                expectedResult = pattern
+                pattern = undefined
+            expectedResult = _.sortBy expectedResult if _.isArray expectedResult
+            result = idb.getSubkeysSync(key, pattern, skipCount, count, duplicationKeyProcess)
+            result = _.sortBy result if _.isArray result
+        expect(result).toEqual expectedResult
+
+    testGetAttrsInFileSync : (key, pattern, skipCount, count, expectedResult)->
+        if not expectedResult?
+            if _.isArray count
+                expectedResult = count
+                count = undefined
+            else if _.isArray skipCount
+                expectedResult = skipCount
+                skipCount = undefined
+            else if _.isArray pattern
+                expectedResult = pattern
+                pattern = undefined
+            expectedResult = _.sortBy expectedResult if _.isArray expectedResult
+            result = idb.getAttrsInFileSync(key, pattern, skipCount, count)
+            result = _.sortBy result if _.isArray result
+        expect(result).toEqual expectedResult
 
     testGetAttrCountInFileSync : (key, pattern, expectedResult)->
         if not expectedResult?

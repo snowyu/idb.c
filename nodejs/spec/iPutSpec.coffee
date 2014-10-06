@@ -1,16 +1,16 @@
-describe 'Put a key/value to a directory', ->
-    path   = require('path')
-    fse    = require('fs-extra')
-    fs     = require('graceful-fs')
-    chance = new require('chance')()
-    idb    = require('../index')
-    utils  = require('./utils')
+path   = require('path')
+fse    = require('fs-extra')
+fs     = require('graceful-fs')
+chance = new require('chance')()
+idb    = require('../index')
+utils  = require('./utils')
 
-    dataDir = path.join(__dirname, 'tmp')
-    charset = '中文你好abcdefghijklmnopqrstuvwxyz关键爱英明真光明浮现美丽宝贝'
-    gKey    = path.join(dataDir, 'u'+chance.string({pool: charset, length: 5}))
-    gKey2   = path.join(dataDir, 'u'+chance.string({pool: charset, length: 5}))
-    fse.remove(dataDir)
+gKey    = utils.getRandomKey()
+gKey2   = utils.getRandomKey()
+
+describe 'Put a key/value to a directory', ->
+
+    utils.clearDataDir()
 
 
     it 'should be add a key to the folder synchronous', ->
