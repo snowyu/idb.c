@@ -163,9 +163,9 @@
  //all keys count(include partition).
  ssize_t iSubkeyTotal(const sds aDir, const char* aKey, const int aKeyLen, const char* aPattern, const TIDBProcesses aDuplicationKeyProcess);
  //current normal keys count(no partition).
- static inline size_t iSubkeyCount(const sds aKeyPath, const char* aPattern)
+ static inline ssize_t iSubkeyCount(const sds aKeyPath, const char* aPattern)
  {
-    size_t result = CountDir(aKeyPath, aPattern, LIST_NORMAL_DIRS);
+    ssize_t result = CountDir(aKeyPath, aPattern, LIST_NORMAL_DIRS);
     return result;
  }
 
