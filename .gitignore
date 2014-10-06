@@ -1,6 +1,6 @@
 *.log*
 *.swp
-/tmp
+tmp
 *.bak
 .bundle
 .DS_Store
