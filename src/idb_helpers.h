@@ -34,6 +34,7 @@
 
  #define IDB_KEY_TYPE_NAME          ".type"
  #define IDB_VALUE_NAME             ".value"
+ #define IDB_ALIAS_NAME             ".alias"
  //#define IDB_SPLIT_ATTR_POSTFIX ".me"                           //the attribute postfix for the split key.
  //#define IDB_SPLIT_KEY_NAME     ".key"IDB_SPLIT_ATTR_POSTFIX   //store the key name in the file for the split key dir.
  #define XATTR_PREFIX               "user."
@@ -105,6 +106,7 @@
   */
  sds GetDirValue(const char *aDir, const int aDirLen, const char *aAttribute);
  bool SetDirValue(const char *aDir, const int aDirLen, const char *aValue, const size_t aValueSize, const char *aAttribute);
+ bool AppendDirValue(const char *aDir, const int aDirLen, const char *aValue, const size_t aValueSize, const char *aAttribute);
  int64_t IncrByDirValue(const char *aDir, const int aDirLen, const int64_t aValue, const char *aAttribute);
 
  //return the real dir if such key exists, or return NULL
@@ -130,6 +132,7 @@
  int64_t iIncrByInFile(const sds aKeyPath, int64_t aValue, const char *aAttribute, const TIDBProcesses aPartitionFullProcess);
  //result = 0 means ok, ENOEXEC means no operation, IDB_ERR_DUP_FILE_NAME means the same file name exists error, 
  int iPutInFile(const sds aKeyPath, const char *aValue, const size_t aValueSize, const char *aAttribute, const TIDBProcesses aPartitionFullProcess);
+ int iAppendInFile(const sds aKeyPath, const char *aValue, const size_t aValueSize, const char *aAttribute, const TIDBProcesses aPartitionFullProcess);
  int iPutInXattr(const sds aKeyPath, const char *aValue, const size_t aValueSize, const char *aAttribute, const TIDBProcesses aPartitionFullProcess);
  int iPut(const sds aDir, const char* aKey, const int aKeyLen, const char *aValue, const size_t aValueSize, const char *aAttribute, const int aStoreType); //deprecated
  int iPutInt(const sds aDir, const char* aKey, const int aKeyLen, int64_t aValue, const char *aAttribute, const int aStoreType);

@@ -8,6 +8,17 @@
 * !+ Mongrel2 Restful API
 
 
+# 2014-10-07
+
++ iAppendInFile: append sth to the attribute's value.
+* iKeyAlias: create a key alias and add the alias to the alias attribute.
+  + append the alias to the ".alias" attribute after creating key alias successful
+  * the aliases seperate from "\n".
+* !iDeleteKey:
+  + check the delete key whether is a key alias
+  + delete all aliases from ".alias" attribute if not an alias
+    * remove all aliases first if the key is not a alias.
+
 # 2014-10-06
 
 + Build nodejs binding:

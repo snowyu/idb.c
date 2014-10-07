@@ -146,6 +146,22 @@ bool SetDirValue(const char *aDir, const int aDirLen, const char *aValue, const 
     return result;
 }
 
+bool AppendDirValue(const char *aDir, const int aDirLen, const char *aValue, const size_t aValueSize, const char *aAttribute)
+{
+    off_t vSize;
+    int result = false;
+    sds vFile = _make_attr_file_name(aDir, aDirLen, aAttribute);
+    int fd = open(vFile, O_WRONLY|O_CREAT, O_RW_RW_R__PERMS);
+    if (fd >= 0) {
+        lseek(fd, 0L, SEEK_END);
+        vSize = write(fd, aValue, aValueSize);
+        if (vSize == aValueSize) result = true;
+        close(fd);
+    }
+    sdsfree(vFile);
+    return result;
+}
+
 int64_t IncrByDirValue(const char *aDir, const int aDirLen, const int64_t aValue, const char *aAttribute)
 {
     int64_t result = 0;
@@ -607,7 +623,10 @@ int64_t iIncrByInFile(const sds aKeyPath, int64_t aValue, const char *aAttribute
     return result;
 }
 
-int iPutInFile(const sds aKeyPath, const char *aValue, const size_t aValueSize, const char *aAttribute, const TIDBProcesses aPartitionFullProcess)
+
+static inline int _iPutOrAppendInFile(const sds aKeyPath, const char *aValue, const size_t aValueSize, const char *aAttribute
+        , const TIDBProcesses aPartitionFullProcess
+        , const bool isPut)
 {
     sds vDir = sdsdup(aKeyPath);
     if (vDir && IDBMaxPageCount > 0) {
@@ -623,11 +642,24 @@ int iPutInFile(const sds aKeyPath, const char *aValue, const size_t aValueSize, 
     //    return result;
     //}
     if(result == PATH_IS_DIR) {
-        result = !SetDirValue(vDir, sdslen(vDir), aValue, aValueSize, aAttribute);
+        if (isPut)
+            result = !SetDirValue(vDir, sdslen(vDir), aValue, aValueSize, aAttribute);
+        else
+            result = !AppendDirValue(vDir, sdslen(vDir), aValue, aValueSize, aAttribute);
     }
     SDSFreeAndNil(vDir);
 
     return result;
+}
+
+int iPutInFile(const sds aKeyPath, const char *aValue, const size_t aValueSize, const char *aAttribute, const TIDBProcesses aPartitionFullProcess)
+{
+    return _iPutOrAppendInFile(aKeyPath, aValue, aValueSize, aAttribute, aPartitionFullProcess, true);
+}
+
+int iAppendInFile(const sds aKeyPath, const char *aValue, const size_t aValueSize, const char *aAttribute, const TIDBProcesses aPartitionFullProcess)
+{
+    return _iPutOrAppendInFile(aKeyPath, aValue, aValueSize, aAttribute, aPartitionFullProcess, false);
 }
 
 int iPutInXattr(const sds aKeyPath, const char *aValue, const size_t aValueSize, const char *aAttribute, const TIDBProcesses aPartitionFullProcess)
@@ -885,7 +917,18 @@ int iKeyAlias(const sds aDir, const char* aKey, const int aKeyLen, const char* a
         result = symlink(vSrcDir, vDestDir);
         //printf("symlink(src=%s, dest=%s)=%d\n", vSrcDir, vDestDir, result);
         sdsfree(vSrcDir);
-        if (result != 0) result = errno;
+        if (result != 0) {
+            result = errno;
+        }
+        else {
+            //add the alias name to the key's "alias" attribute.
+            vSrcDir = sdsJoinPathLen(sdsdup(aDir), aKey, aKeyLen);
+            sds alias = sdsnewlen(aAliasPath, aAliasPathLen);
+            alias = sdscatlen(alias, "\n", 1);
+            result = iAppendInFile(vSrcDir, alias, sdslen(alias), IDB_ALIAS_NAME, aPartitionFullProcess);
+            sdsfree(vSrcDir);
+            sdsfree(alias);
+        }
     }
     else
         result = errno;
