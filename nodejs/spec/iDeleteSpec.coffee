@@ -5,14 +5,15 @@ chance = new require('chance')()
 idb = require('../index')
 utils = require('./utils')
 
-gKey    = utils.getRandomKey()
+gKey    = utils.getKeyPath('deleteTest')
 gKey2   = utils.getRandomKey()
-utils.clearDataDir()
 
 describe 'Delete a key/value from a directory', ->
 
+    utils.clearDataDir()
+
     it 'delete an non-exists key from the folder synchronous', ->
-        utils.testDeleteInFileSync(gKey, false)
+        utils.testDeleteInFileSync(gKey2, false)
         attr  = utils.getRandomStr(5)
         utils.testDeleteInFileSync(gKey, attr, false)
 
@@ -41,4 +42,12 @@ describe 'Delete a key/value from a directory', ->
         attr  = utils.getRandomStr(5)
         utils.testPutInFileSync(key, value, attr)
         utils.testDeleteInFileAsync(key, attr, true)
+
+    it 'should delete an exists alias key from the folder synchronous', ->
+        key    = "realKey"
+        value  = utils.getRandomStr(16)
+        alias  = "aliasKey"
+        utils.testPutInFileSync(path.join(gKey, key), value)
+        utils.testCreateKeyAliasSync(gKey, key, alias)
+        utils.testDeleteInFileSync(path.join(gKey, alias), true)
 

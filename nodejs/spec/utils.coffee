@@ -12,6 +12,10 @@ utils =
     dataDir: path.join(__dirname, 'tmp')
     clearDataDir: ->
         fse.remove(utils.dataDir)
+    getKeyPath: (aKey)->
+        if not aKey?
+            aKey = utils.getRandomKey(5)
+        path.join utils.dataDir, aKey
     getRandomKey: (aLen, aCharset)->
         if not aCharset?
             aCharset = charset
@@ -248,6 +252,45 @@ utils =
             if expectedResult == idb.IDB_OK and value?
                 result = fs.readFileSync(path.join(key,attr), 'utf8')
                 expect(result).toBe value
+                utils.testIsExistsInFileSync(key, attr, true)
+            asyncSpecDone()
+        asyncSpecWait()
+
+    testAppendInFileSync : (key, value, attr, partitionKeyWay, expectedResult)->
+        vAttr = attr
+        vAttr = IDB_VALUE_NAME unless attr
+        if not expectedResult?
+            expectedResult = idb.IDB_OK
+        if expectedResult == idb.IDB_OK
+            try
+                lastResult = fs.readFileSync(path.join(key,vAttr), 'utf8')
+            catch
+                lastResult = ""
+        expect(idb.appendInFileSync(key, value, attr, partitionKeyWay)).toBe expectedResult
+        if (expectedResult == idb.IDB_OK) and value?
+            result = fs.readFileSync(path.join(key,vAttr), 'utf8')
+            expect(lastResult+value).toBe result
+            utils.testIsExistsInFileSync(key, attr, true)
+
+    testAppendInFileAsync : (key, value, attr, partitionKeyWay, expectedResult)->
+        vAttr = attr
+        vAttr = IDB_VALUE_NAME unless attr
+        if not expectedResult?
+            expectedResult = idb.IDB_OK
+        if expectedResult == idb.IDB_OK
+            try
+                lastResult = fs.readFileSync(path.join(key,vAttr), 'utf8')
+            catch
+                lastResult = ""
+        idb.appendInFile key, value, attr, partitionKeyWay, (err)->
+            if expectedResult == idb.IDB_OK
+                expect(err).toBe null
+            else
+                expect(err).not.toBe null
+                expect(err.code).toBe expectedResult
+            if expectedResult == idb.IDB_OK and value?
+                result = fs.readFileSync(path.join(key,vAttr), 'utf8')
+                expect(lastResult+value).toBe result
                 utils.testIsExistsInFileSync(key, attr, true)
             asyncSpecDone()
         asyncSpecWait()

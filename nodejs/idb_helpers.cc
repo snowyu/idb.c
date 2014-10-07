@@ -52,6 +52,11 @@ void InitAll(Handle<Object> exports) {
   exports->Set(NanNew<String>("putInFile"),
     NanNew<FunctionTemplate>(PutInFileAsync)->GetFunction());
 
+  exports->Set(NanNew<String>("appendInFileSync"),
+    NanNew<FunctionTemplate>(AppendInFileSync)->GetFunction());
+  exports->Set(NanNew<String>("appendInFile"),
+    NanNew<FunctionTemplate>(AppendInFileAsync)->GetFunction());
+
   exports->Set(NanNew<String>("getInFileSync"),
     NanNew<FunctionTemplate>(GetInFileSync)->GetFunction());
   exports->Set(NanNew<String>("getInFile"),
