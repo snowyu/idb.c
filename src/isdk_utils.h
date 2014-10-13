@@ -102,6 +102,7 @@
  #define PATH_IS_FILE       -1
  #define PATH_IS_DIR        1
  #define PATH_IS_SYM_DIR    2    //is symlink dir
+ #define PATH_IS_BAD_SYM    3    //the symlink is bad, the linked path is not exists.
  #define PATH_IS_SYM_FILE   -999 //is symlink file
  #define PATH_IS_NOT_EXISTS 0
 
@@ -312,8 +313,8 @@ int ForceDirectories(const char* aFolderPath, mode_t aMode);
 //@len: is the length of aPath2 
 sds sdsJoinPathLen(const sds aPath, const void *aPath2, const size_t len);
 //only esacpe the '%' char and control-chars if aUnSafeChars is NULL 
-static char *UrlEncode(char *s, const char *aUnSafeChars);
-static int UrlDecode(char *vStr, int len);
+char *UrlEncode(char *s, const char *aUnSafeChars);
+int UrlDecode(char *vStr, int len);
 //return the utf8 char size if successful, or return < 0 means error code(see utf8proc)
 //sizeof(*aResult) MUST be greater than 6.
 static inline ssize_t IterateUtf8Char(const char* aUtf8Str, ssize_t aStrLen, char* aResult)

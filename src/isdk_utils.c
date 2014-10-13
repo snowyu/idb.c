@@ -163,7 +163,7 @@ int IsDirectory(const char* aFileName)
           vStatResult = stat(aFileName, &st);
           err = (vStatResult == 0 ? 0 : -errno);
           if (err) {
-              if (err == -ENOENT) err = PATH_IS_NOT_EXISTS;
+              if (err == -ENOENT) err = PATH_IS_BAD_SYM;
               return err;
           }
       }
@@ -626,7 +626,8 @@ static inline int is_safe_char(char c, const char *aUnSafeChars) {
 }
 
 //return a new null-string if successful.
-static char *UrlEncode(char *s, const char *aUnSafeChars) {
+char *UrlEncode(char *s, const char *aUnSafeChars)
+{
   char *ret, *c, *ct;
   int len;
   //printf("UrlEncode: Encoding '%s'\n", s);
@@ -658,7 +659,7 @@ static char *UrlEncode(char *s, const char *aUnSafeChars) {
 /* convert(decode) the str directly.
  * return the new length for decoded string, It is always smaller than the orginal length.
  */
-static int UrlDecode(char *vStr, int len)
+int UrlDecode(char *vStr, int len)
 {
     char *dest = vStr;
     char *data = vStr;
