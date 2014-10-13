@@ -75,6 +75,17 @@ int64_t strToInt64(const char *str);
  * */
 int64_t strToInt64x(const char *str);
 
+//repalce the oldChar with the new replacedChar.
+//return the str's size 
+int strReplaceChar(char *str, char oldChar, char replacedChar);
+
+//if can split this return a new string array and size.
+//NOTE: the *str MUST be a variable, NOT a constant string!!
+//      the function would write to '\0' to replace the aDelimiter for saving space
+size_t strSplit(char *str, char aDelimiter, char ***result);
+
+inline size_t strCountChar(const char *str, char aChar);
+
  #ifdef __cplusplus
  }
  #endif
