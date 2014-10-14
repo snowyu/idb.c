@@ -48,6 +48,8 @@
  #define IDB_ERR_PART_DUP_KEY       -101  //the Duplication Key occur
  #define IDB_ERR_DUP_FILE_NAME      PATH_IS_FILE  //can not create the key for the same name file exists.
  #define IDB_ERR_KEY_NOT_EXISTS     -102
+ #define IDB_ERR_ATTR_NOT_EXISTS    -103
+ #define IDB_ERR_KEY_ALREADY_EXISTS -104  //the key is already exists.
  #define IDB_OK                     0
 
  //the store types:
@@ -145,7 +147,7 @@
  dStringArray *iAttrsInFile(const sds aKeyPath, const char* aPattern, size_t aSkipCount, size_t aCount);
 
  //the key operations:
- //Make a new aAlias of the aKey
+ //Make a new alias of the aKey
  //return: Upon successful completion, a zero value is returned.  else the error code returned.
  int iKeyAlias(const sds aDir, const char* aKey, const int aKeyLen, const char* aAliasPath, const int aAliasPathLen, TIDBProcesses aPartitionFullProcess);
  //delete the key includes the subkeys.
