@@ -8,6 +8,21 @@
 * !+ Mongrel2 Restful API
 
 
+# 2014-10-14
+
+* iDeleteKey:
+  + check the delete key whether is a key alias
+  + delete all aliases from ".alias" attribute if not an alias
+    * remove all aliases first if the key is not a alias.
+
+# 2014-10-11
+
+* [bug] iKeyAlias: create the key alias forget the srcKey path is not really path if partitionkey is enabled.
+
+# 2014-10-10
+
+* [bug] iKeyDelete/iKeyPathDelete delete an alias of a key only but delete all contents of the key.
+
 # 2014-10-07
 
 + iAppendInFile: append sth to the attribute's value.
