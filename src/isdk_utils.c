@@ -144,7 +144,7 @@ int ForceDirectories(const char* aFolderPath, mode_t aMode)
         status = do_mkdir(aFolderPath, aMode);
         if (status == 0) errno = 0;
     free(copypath);
-    return (status);
+    return (errno);
 }
 
 //test the filename whether is a directory

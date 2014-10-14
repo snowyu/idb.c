@@ -306,6 +306,8 @@ static inline int DirectoryExists(const char *aFolderPath){
 //#include <unistd.h>
 //int symlink(const char *srcPath, const char *destPath); //make symbolic link(destPath) to a srcPath
 
+//create the directory,  and create intermediate directories as required.
+//return 0 if successful, others is errno.
 int ForceDirectories(const char* aFolderPath, mode_t aMode);
 
 //Join aPath and aPath2
