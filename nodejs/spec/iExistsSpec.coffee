@@ -1,3 +1,5 @@
+#console.log("exists")
+
 describe 'IsExists a key/value from a directory', ->
     path=require('path')
     fse=require('fs-extra')

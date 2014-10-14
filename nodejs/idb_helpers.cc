@@ -41,11 +41,17 @@ void InitAll(Handle<Object> exports) {
     NanNew<Number>(IDB_ERR_DUP_FILE_NAME));
   exports->Set(NanNew<String>("IDB_ERR_KEY_NOT_EXISTS"),
     NanNew<Number>(IDB_ERR_KEY_NOT_EXISTS));
+  exports->Set(NanNew<String>("IDB_ERR_ATTR_NOT_EXISTS"),
+    NanNew<Number>(IDB_ERR_ATTR_NOT_EXISTS));
+  exports->Set(NanNew<String>("IDB_ERR_KEY_ALREADY_EXISTS"),
+    NanNew<Number>(IDB_ERR_KEY_ALREADY_EXISTS));
 
   exports->Set(NanNew<String>("errorStr"),
     NanNew<FunctionTemplate>(ErrorStrSync)->GetFunction());
   exports->Set(NanNew<String>("setMaxPageSize"),
     NanNew<FunctionTemplate>(SetMaxPageSizeSync)->GetFunction());
+  exports->Set(NanNew<String>("getMaxPageSize"),
+    NanNew<FunctionTemplate>(GetMaxPageSizeSync)->GetFunction());
 
   exports->Set(NanNew<String>("putInFileSync"),
     NanNew<FunctionTemplate>(PutInFileSync)->GetFunction());
@@ -88,6 +94,9 @@ void InitAll(Handle<Object> exports) {
 
   exports->Set(NanNew<String>("getSubkeyCountSync"),
     NanNew<FunctionTemplate>(GetSubkeyCountSync)->GetFunction());
+
+  exports->Set(NanNew<String>("getSubkeyTotalSync"),
+    NanNew<FunctionTemplate>(GetSubkeyTotalSync)->GetFunction());
 
   exports->Set(NanNew<String>("getSubkeysSync"),
     NanNew<FunctionTemplate>(GetSubkeysSync)->GetFunction());

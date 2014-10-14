@@ -1,3 +1,5 @@
+#console.log("getAttr")
+
 path=require('path')
 fse=require('fs-extra')
 fs=require('graceful-fs')

@@ -1,3 +1,5 @@
+#console.log("Subkeys")
+
 path=require('path')
 fse=require('fs-extra')
 fs=require('graceful-fs')
@@ -6,6 +8,7 @@ idb = require('../index')
 utils = require('./utils')
 
 gKey    = utils.getRandomKey()
+
 
 describe 'Get Subkeys', ->
 
@@ -30,7 +33,7 @@ describe 'Get Subkeys', ->
         alias   = utils.getRandomStr(5)
         utils.testCreateKeyAliasSync(gKey, subkey3, alias)
 
-        utils.testGetSubkeyCountSync(gKey, 4)
+        utils.testGetSubkeyTotalSync(gKey, 4)
         utils.testGetSubkeysSync(gKey, [subkey1,subkey2,subkey3, alias])
 
 

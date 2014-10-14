@@ -23,7 +23,9 @@ NAN_METHOD(CreateKeyAliasSync);
 NAN_METHOD(GetAttrCountInFileSync);
 NAN_METHOD(GetAttrsInFileSync);
 NAN_METHOD(GetSubkeyCountSync);
+NAN_METHOD(GetSubkeyTotalSync);
 NAN_METHOD(GetSubkeysSync);
 NAN_METHOD(AppendInFileSync);
+NAN_METHOD(GetMaxPageSizeSync);
 
 #endif  // IDB_HELPERS_SYNC_H_

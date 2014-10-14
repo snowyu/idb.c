@@ -1,3 +1,5 @@
+#console.log("setMaxPageSize")
+
 path   = require('path')
 fse    = require('fs-extra')
 fs     = require('graceful-fs')
@@ -6,13 +8,14 @@ idb    = require('../index')
 utils  = require('./utils')
 
 gKey    = utils.getRandomKey()
+utils.clearDataDir()
 
 describe 'adjust iDB MaxPageSize options', ->
 
-    utils.clearDataDir()
 
     it 'should be two dirs when set the MaxPageSize is 2', ->
         expect(idb.setMaxPageSize(2)).toBe true
+        expect(idb.getMaxPageSize()).toBe 2
         utils.testPutInFileSync(path.join(gKey, "1"))
         utils.testPutInFileSync(path.join(gKey, "2"))
 
@@ -50,3 +53,7 @@ describe 'adjust iDB MaxPageSize options', ->
         expect(fs.existsSync(key)).toBe false
 
 
+    it 'should set MaxPageSize off when testing end..', ->
+        expect(idb.setMaxPageSize(0)).toBe true
+        expect(idb.getMaxPageSize()).toBe 0
+ 

@@ -1,3 +1,5 @@
+#console.log("DeleteSpec")
+
 path=require('path')
 fse=require('fs-extra')
 fs=require('graceful-fs')
@@ -7,6 +9,7 @@ utils = require('./utils')
 
 gKey    = utils.getKeyPath('deleteTest')
 gKey2   = utils.getRandomKey()
+
 
 describe 'Delete a key/value from a directory', ->
 
@@ -27,6 +30,7 @@ describe 'Delete a key/value from a directory', ->
     it 'delete an non-exists key from the folder asynchronous', ->
         key  = utils.getRandomKey()
         utils.testDeleteInFileAsync(key, false)
+
     it 'delete an non-exists key\'s attr from the folder asynchronous', ->
         key  = utils.getRandomKey()
         attr  = utils.getRandomStr(5)
@@ -50,4 +54,21 @@ describe 'Delete a key/value from a directory', ->
         utils.testPutInFileSync(path.join(gKey, key), value)
         utils.testCreateKeyAliasSync(gKey, key, alias)
         utils.testDeleteInFileSync(path.join(gKey, alias), true)
+
+    it 'should delete an exists key with aliases together synchronous', ->
+        key    = "realKey"
+        value  = utils.getRandomStr(16)
+        alias  = "aliasKey"
+        alias2 = "aliasKey2"
+        alias3 = "aliasKey3"
+        utils.testPutInFileSync(path.join(gKey, key), value)
+        #expect(utils.isFileExists(path.join(gKey, alias))).toBe false
+        #utils.testPutInFileSync(path.join(gKey, key), value)
+        utils.testCreateKeyAliasSync(gKey, key, alias)
+        utils.testCreateKeyAliasSync(gKey, key, alias2)
+        utils.testCreateKeyAliasSync(gKey, key, alias3)
+        utils.testDeleteInFileSync(path.join(gKey, key), true)
+        utils.testIsExistsInFileSync(path.join(gKey, alias), false)
+        utils.testIsExistsInFileSync(path.join(gKey, alias2), false)
+        utils.testIsExistsInFileSync(path.join(gKey, alias3), false)
 

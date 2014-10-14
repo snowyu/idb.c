@@ -6,12 +6,13 @@ _    = require('lodash')
 chance = new require('chance')()
 
 IDB_VALUE_NAME = idb.IDB_VALUE_NAME
-charset = '中文你好abcdefghijklmnopqrstuvwxyz关键爱英明真光明浮现美丽宝贝'
+charset = '中文你好abcdefghijklmnopqrstuvwxyz关键爱英明真光明浮现美丽宝贝人生道'
 
 utils =
     dataDir: path.join(__dirname, 'tmp')
     clearDataDir: ->
-        fse.remove(utils.dataDir)
+        fse.removeSync(utils.dataDir)
+        idb.setMaxPageSize(2)
     getKeyPath: (aKey)->
         if not aKey?
             aKey = utils.getRandomKey(5)
@@ -25,12 +26,39 @@ utils =
         if not aCharset?
             aCharset = charset
         chance.string({pool: aCharset, length: aLen})
+    isFileExists: (aFile)->
+        try
+            stats = fs.lstatSync(aFile)
+            return true
+        catch e
+            if e.code == 'ENOENT'
+                return false
+            else
+                throw e
+    isSymbolicLink: (aFile)->
+        try
+            stats = fs.lstatSync(aFile)
+            return stats.isSymbolicLink()
+        catch e
+            if e.code == 'ENOENT'
+                return false
+            else
+                throw e
 
     testGetSubkeyCountSync: (key, pattern, expectedResult)->
         if not expectedResult?
             expectedResult = pattern
             pattern = undefined
         expect(idb.getSubkeyCountSync(key, pattern)).toBe expectedResult
+
+    testGetSubkeyTotalSync: (key, pattern, duplicationKeyProcess, expectedResult)->
+        if not expectedResult?
+            expectedResult = duplicationKeyProcess
+            duplicationKeyProcess = undefined
+        if not expectedResult?
+            expectedResult = pattern
+            pattern = undefined
+        expect(idb.getSubkeyTotalSync(key, pattern, duplicationKeyProcess)).toBe expectedResult
 
     testGetSubkeysSync : (key, pattern, skipCount, count, duplicationKeyProcess, expectedResult)->
         if not expectedResult?
@@ -97,6 +125,8 @@ utils =
             expectedResult = idb.IDB_OK
         expect(idb.createKeyAliasSync(dir, key, alias, partitionKeyWay)).toBe expectedResult
         if expectedResult == idb.IDB_OK
+            #if this is a partition alias Key will error 
+            #expect(utils.isSymbolicLink(path.join(dir, alias))).toBe true
             vkey = path.join(dir,key)
             value = idb.getInFileSync(vkey)
             utils.testGetInFileSync(path.join(dir, alias), value)
@@ -126,12 +156,15 @@ utils =
             expect(err).toEqual {code:2} #no such file or dir.
         ###
             
-
         if expectedResult
+            expect idb.isExistsInFileSync(key, attr)
+                .toBe false
+            ###
             p = key
             if attr
                 p = path.join(p, attr)
             expect(fs.existsSync(p)).toBe false
+            ###
 
     testDeleteInFileAsync : (key, attr, expectedResult)->
         erred = false
@@ -235,7 +268,9 @@ utils =
         expect(idb.putInFileSync(key, value, attr, partitionKeyWay)).toBe expectedResult
         attr = IDB_VALUE_NAME unless attr
         if expectedResult == idb.IDB_OK and value?
-            result = fs.readFileSync(path.join(key,attr), 'utf8')
+            #todo: this would be error if it's partition key!
+            #result = fs.readFileSync(path.join(key,attr), 'utf8')
+            result = idb.getInFileSync(key, attr)
             expect(result).toBe value
             utils.testIsExistsInFileSync(key, attr, true)
 
@@ -250,7 +285,8 @@ utils =
                 expect(err.code).toBe expectedResult
             attr = IDB_VALUE_NAME unless attr
             if expectedResult == idb.IDB_OK and value?
-                result = fs.readFileSync(path.join(key,attr), 'utf8')
+                #result = fs.readFileSync(path.join(key,attr), 'utf8')
+                result = idb.getInFileSync(key, attr)
                 expect(result).toBe value
                 utils.testIsExistsInFileSync(key, attr, true)
             asyncSpecDone()

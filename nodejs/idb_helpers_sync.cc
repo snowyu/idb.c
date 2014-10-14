@@ -93,6 +93,13 @@ NAN_METHOD(SetMaxPageSizeSync)
   NanReturnValue(NanNew<Boolean>(result));
 }
 
+//int getMaxPageSize()
+NAN_METHOD(GetMaxPageSizeSync)
+{
+  NanScope();
+  NanReturnValue(NanNew<Number>(IDBMaxPageCount));
+}
+
 
 NAN_METHOD(PutInFileSync) {
   NanScope();
@@ -177,6 +184,7 @@ NAN_METHOD(PutInFileSync) {
   NanReturnValue(NanNew<Number>(result));
 }
 
+//String GetInFileSync(key[, attr])
 NAN_METHOD(GetInFileSync) {
   NanScope();
 
@@ -556,6 +564,54 @@ NAN_METHOD(GetSubkeyCountSync) {
 #ifdef DEBUG
   printf("result=%d\n", result);
 #endif
+  sdsfree(key);
+  sdsfree(pattern);
+  NanReturnValue(NanNew<Number>(result));
+}
+
+//int GetSubkeyTotalSync(key[, pattern[, aDuplicationKeyProcess]])
+NAN_METHOD(GetSubkeyTotalSync) {
+  NanScope();
+
+  int l = args.Length();
+  sds dir     = NULL;
+  sds key     = NULL;
+  sds pattern = NULL;
+  TIDBProcesses duplicationKeyProcess = dkIgnored;
+
+  Local<Value> param;
+  if (l >= 1) {
+      param = args[0];
+      if (param->IsString()) {
+          dir = sdsnew(*NanUtf8String(param));
+          key = ExtractLastPathName(dir);
+      }
+  }
+  if (!key)
+  {
+      NanThrowTypeError("miss the key param.");
+      NanReturnUndefined();
+  }
+  if (l >= 2) {
+      param = args[1];
+      if (param->IsString()) {
+          pattern = sdsnew(*NanUtf8String(param));
+      }
+  }
+  if (l >= 3) {
+      param = args[2];
+      if (param->IsNumber()) {
+          duplicationKeyProcess = (TIDBProcesses) param->Uint32Value();
+      }
+  }
+#ifdef DEBUG
+  printf("GetSubkeyTotalSync:dir=%s,key=%s, pattern=%s, duplicationKeyProcess=%d\n",dir, key, pattern, duplicationKeyProcess);
+#endif
+  ssize_t result = iSubkeyTotal(dir, key, sdslen(key), pattern, duplicationKeyProcess);
+#ifdef DEBUG
+  printf("result=%d\n", result);
+#endif
+  sdsfree(dir);
   sdsfree(key);
   sdsfree(pattern);
   NanReturnValue(NanNew<Number>(result));

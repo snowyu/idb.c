@@ -1,3 +1,5 @@
+#console.log("Append")
+
 path   = require('path')
 fse    = require('fs-extra')
 fs     = require('graceful-fs')
@@ -8,7 +10,8 @@ utils  = require('./utils')
 gKey    = utils.getKeyPath("appendKey")
 gKey2   = utils.getRandomKey()
 
-## it will be called after all too.
+
+## xit will be called after all too.
 utils.clearDataDir()
 
 describe 'Append a key/value to a directory', ->
@@ -17,29 +20,29 @@ describe 'Append a key/value to a directory', ->
         value = utils.getRandomStr(16)
         utils.testAppendInFileSync(gKey, value)
 
-    it 'should be update a key to the folder synchronous', ->
+    xit 'should be update a key to the folder synchronous', ->
         value = utils.getRandomStr(20)
         utils.testAppendInFileSync(gKey, value)
 
-    it 'should be update a key attr to the folder synchronous', ->
+    xit 'should be update a key attr to the folder synchronous', ->
         value = utils.getRandomStr(20)
         attr = utils.getRandomStr(10)
         utils.testAppendInFileSync(gKey, value, attr)
 
-    it 'should be add a key to the folder asynchronous', ->
+    xit 'should be add a key to the folder asynchronous', ->
         value = utils.getRandomStr(16)
         utils.testAppendInFileAsync(gKey2, value)
 
-    it 'should be update a key to the folder asynchronous', ->
+    xit 'should be update a key to the folder asynchronous', ->
         value = utils.getRandomStr(20)
         utils.testAppendInFileAsync(gKey2, value)
 
-    it 'should be update a key attr to the folder asynchronous', ->
+    xit 'should be update a key attr to the folder asynchronous', ->
         value = utils.getRandomStr(20)
         attr = utils.getRandomStr(10)
         utils.testAppendInFileAsync(gKey2, value, attr)
 
-    it 'should be a creation error when the same file exists', ->
+    xit 'should be a creation error when the same file exists', ->
          # test the same name file exists for the key
         key = path.join(gKey, "2")
         fse.ensureFileSync(key)
