@@ -16,7 +16,7 @@ Directories and Files
   * idb.c     -- the iDB Database Engine source file
   * idb_helpers.h -- the helper functions and constants for the iDB Database Engine head file
     * Constants: IDB_KEY_TYPE_NAME, IDB_VALUE_NAME, XATTR_PREFIX
-    * Options: 
+    * Options:
       *   IDBMaxPageCount: the max page size limit for the iDB, less than or equ 0 means disable it.
       *   IDBDuplicationKeyProcess: howto process the duplication keys when list subkeys
           *    dkIgnored: DO NOT add the duplication key into list.
@@ -26,10 +26,10 @@ Directories and Files
       *   IDBPartitionFullProcess: the available process way when putting local parition full(see iPutInXXX).
           *   dkIgnored: force to put the key in prev full dir.
           *   dkStopped: stopped and raise error.
-    * Functions: 
-      *   Operations(Attributes): 
-          * iPutInFile/iPutInXattr, 
-          * iGetInFile/iGetInXattr, 
+    * Functions:
+      *   Operations(Attributes):
+          * iPutInFile/iPutInXattr,
+          * iGetInFile/iGetInXattr,
           * iDeleteInFile/iDeleteInXattr
           * iIsExistsInFile/iIsExistsInXattr
           * iPut/iGet/iDelete/iIsExists(..., aStorageType) -- will be deprecated maybe
@@ -73,9 +73,9 @@ should be the "value" attribute, which is used to store the value of the "key".
 Limits
 ------
 
-The Different File System would be different. So be care of your choose.
+These limits vary with different file systems. So be care of your choose.
 
-* the key name length           = the directory(file) name length. 
+* the key name length           = the directory(file) name length.
 * the key path depth            = the path depth in the file system.
 * the max subkeys count limits  = the max file count in a directory
   * enable the IDBMaxPageCount can exceed the limits.
